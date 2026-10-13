@@ -4,7 +4,7 @@
 ## Author: Dyre
 ## Version: 0.1.0-beta
 ## IconTexture: Interface\Icons\INV_Sword_04
-## Category: Inventory
+## Category: Bags & Inventory
 
 Commands.lua
 Equipment.lua

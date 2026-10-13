@@ -28,7 +28,8 @@ PACKAGE_FILES = TEXT_FILES + MEDIA_FILES
 TGA_HEADER_SIZE = 18
 TGA_TRUECOLOR = 2
 TGA_SIZES = (16, 32, 64, 128, 256)
-# This release contract describes the current exact source gate, not a client framework.
+# Release metadata: the TOC Interface, CurseForge game version, and the build last
+# tested in client. The runtime itself detects features, not builds.
 INTERFACE = 16001
 GAME_VERSION = "1.60.1"
 TARGET_BUILD = 70338
@@ -237,10 +238,10 @@ def validate_archive(path, expected_version):
 def _release_notes(version):
     return f'''# Weapon Sets Forever {version}
 
-- Supports only Forever beta {GAME_VERSION}, build {TARGET_BUILD}, Interface {INTERFACE}.
-  This package does not establish full client compatibility. Dedicated client
-  checks for styled panels, taint, ranged empties, ammo, failures, and character
-  isolation remain necessary.
+- Beta for WoW: Forever. Tested on Forever beta {GAME_VERSION}, build {TARGET_BUILD},
+  Interface {INTERFACE}. WSF runs on later beta builds while the client provides
+  the native equipment-set APIs it needs, and disables itself with one chat
+  message if they are missing.
 - Save named weapon-only snapshots with the Character-panel buttons or
   `/wsf save {{set-name}}`. Quote multi-word command names.
 - WSF UI equipping is out of combat only. Use native `/equipset` or your native

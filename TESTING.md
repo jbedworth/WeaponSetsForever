@@ -24,16 +24,16 @@ WSF is verified in three layers, and each proves different things:
 Keep these layers distinct when reporting results. Do not present a source
 finding or a passing mock run as client verification.
 
-Target: Forever beta `1.60.1.70338`, Interface `16001`, Lua `5.1`. Core gates
-operations to exactly this version, build, and Interface. Other builds remain
-unsupported until reviewed and tested.
+Target: Forever beta `1.60.1.70338`, Interface `16001`, Lua `5.1`. Core does
+not gate on client version, build, or Interface; it gates only on the required
+APIs, constants, and slot identities, so later beta builds keep working unless
+those change.
 
 ## Runtime contract
 
 - `Commands.lua` validates exactly one save name and counts UTF-8 start bytes
   against a 16-letter limit. Custom save-panel and slash saves use the shared validator.
-- `Equipment.lua` checks exact version/build/Interface, required APIs/constants,
-  and all three slot identities (main 16, off 17, ranged 18). It does not discard
+- `Equipment.lua` checks required APIs/constants and all three slot identities (main 16, off 17, ranged 18). It does not discard
   a slot based on ranged visibility or `IsInventorySlotEnabled`.
 - Save-ignore operations cover equipped slots `1..19` except weapons `16/17/18`.
   The code does not individually operate on ammo slot `0`; ammo is outside scope.
@@ -342,8 +342,8 @@ Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
 - [ ] Install the TOC and runtime files under
       `Interface/AddOns/WeaponSetsForever/`. Confirm Interface 16001 and load
       order Commands, Equipment, Core, UI.
-- [ ] Verify core accepts version 1.60.1 / build 70338 / Interface 16001 and
-      rejects mismatched values or missing slot identities before unsafe operations.
+- [ ] Verify core runs on the current beta build and rejects missing APIs,
+      constants, or slot identities before unsafe operations.
 - [ ] Login and `/reload` with the Character panel closed and open. Confirm
       initial availability does not depend on core/UI login-handler order.
 - [ ] Test unavailable capability. Buttons must disable without event errors.
