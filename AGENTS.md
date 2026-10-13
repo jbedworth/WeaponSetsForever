@@ -1,0 +1,313 @@
+# Agent Guidelines
+
+## Project purpose and scope
+
+Weapon Sets Forever is a small, lightweight World of Warcraft: Forever AddOn.
+Its implemented scope is saving and equipping named weapon-only snapshots through
+Character-panel buttons, `/wsf save {set-name}`, and native `/equipset`.
+Do not implement `/wsf set` or speculative secure macro combat support.
+Primary and secondary mean main hand and off hand; include the ranged slot when
+supported by the target client. Off-hand shields and held items are in scope.
+Leave armor, trinkets, and all other equipment unchanged. Sets and any AddOn
+metadata must be per character. Talent-spec-specific sets are optional future
+scope, not an initial requirement.
+
+Command arguments are space-delimited; double quotes are required for multi-word
+save names. `/wsf save` requires exactly one non-empty name argument.
+Custom save-panel input is a literal name, not a command argument string;
+spaces need no quotes.
+Native `/equipset` has its own parser. Do not apply save-parser rules to it.
+Reject missing/empty names, unmatched or malformed quotes, and extra arguments before mutation;
+never silently truncate an unquoted multi-word name to its first word.
+
+Keep this narrow feature set. Do not add automatic switching, general
+outfit management, frameworks, or speculative features without agreement.
+
+## Current project state
+
+- This is an implemented beta AddOn, not a documentation-only project. The
+  current TOC version is `0.1.0-beta`. Preserve existing runtime behavior and
+  user work; do not replace the implementation with scaffolding.
+- Runtime files are Commands.lua, Equipment.lua, Core.lua, UI.lua, and
+  WeaponSetsForever.toc. Commands owns parsing/name validation; Equipment owns
+  native operations and preconditions; Core owns events/equip feedback; UI owns
+  Character-panel controls and custom dialogs.
+- Focused tests exist in tests/run.lua. The parent reports 2026-10-13 local
+  validation passed 270/270 Lua mock tests and syntax checks for Commands.lua,
+  Equipment.lua, Core.lua, UI.lua, and tests/run.lua on LF-normalized files.
+  Preserve the original 2026-10-12 Lua 5.1.5 270/270 result as history in
+  TESTING.md. Historical counts and tooling provenance belong there; distinguish
+  reported execution from checks you ran yourself. Do not invent new passes.
+- The owner reported successful basic UI and command save/equip tests and
+  follow-up client checks. Native Shield-Set result tables established the
+  sparse-result verification fix. Repeated combat comparisons established that
+  native /equipset works but the ordinary WSF UI swap path fails on this beta.
+- Full compatibility is not established. The latest styled panels/restored
+  combat guard, taint, ranged empties, ammo, item-failure cases, and character
+  isolation still need dedicated client checks. Do not replace partial evidence
+  with a claim that every client test passed.
+- The owner selected MIT and approved the original brown/gold shield-and-swords
+  logo. LICENSE and SVG/1024-pixel/512-pixel logo files are present. Artwork is
+  publishing material, not a runtime dependency.
+- The TOC uses the built-in INV_Sword_04 icon and Category: Equipment. Preserve
+  this user-selected category. Distribution-site categories are separate.
+- Git is initialized with origin git@github.com:jbedworth/WeaponSetsForever.git.
+  The 2026-10-13 status inspection found staged additions with unstaged changes,
+  plus untracked release tooling/docs. Preserve the index and all user work;
+  always inspect current Git state before acting.
+- Release helpers and .github/workflows/release.yml are present; a valid local
+  six-file ZIP has been generated in ignored dist/. Publishing is off by default.
+  Screenshots, clean client installation, required release-environment reviewers,
+  and distribution project setup remain pending. Verify current service support
+  for Forever before publishing. No commit, tag, upload, or release is authorized
+  by a request to update documentation.
+- Working-tree text is LF under .gitattributes (* text=auto eol=lf; PNG/JPG/GIF/
+  WebP/ZIP binary). Runtime style and behavior are unchanged apart from LF.
+  git ls-files --eol confirms i/lf w/lf for tracked text. Normalization preserved
+  staged work and the existing core.autocrlf=input setting; do not stage/renormalize the index
+  or change global Git settings without authorization.
+
+## Client and API verification
+
+- Use Blizzard's in-game AddOn API, not the Battle.net web API.
+- Development target confirmed by user: Forever beta 1.60.1, build 70338,
+  Interface 16001, Lua 5.1. Native set capability reports true; creation,
+  ignore-slot, and equip functions exist. Initial save/equip behavior was tested
+  by the owner; this is not full compatibility verification. Reverify launch.
+- Preserve the verified beta API boundary. Verify client build, Lua runtime,
+  Interface/TOC version, slot identities, and affected UI/API behavior before
+  adding support for another client or changing client-dependent code.
+- Pin beta source review to Gethe/wow-ui-source commit
+  `943764493e6b16d63ded3ab304150d1f05e58b57`, version `1.60.1.70338`.
+  Record source findings and unresolved behavior in TESTING.md.
+- Gate the initial runtime to exact version 1.60.1, build 70338, Interface 16001,
+  required APIs/constants, and verified slot identities: main 16, off 17, ranged 18.
+  Require all three slots. Do not drop hidden empty ranged based on
+  IsRangedSlotShown or IsInventorySlotEnabled. Observed beta result tables omit
+  ignored locations. Treat an omitted weapon location as empty only with an
+  explicit false ignore flag and no item ID; do not infer empty from nil alone.
+  Actual empty-slot equipping and missing-item results still need client tests.
+- Names have at most 16 letters, matching the native UI field limit. Count UTF-8
+  start bytes in Lua 5.1, not raw string bytes; verify native Unicode behavior.
+- Treat target-client API documentation and FrameXML as authoritative. Retail
+  and Classic examples are references, not proof of Forever compatibility.
+- Save-ignore operations cover native equipped slots 1..19 other than 16/17/18.
+  Ammo slot 0 is not individually operated on and is outside scope. Verify native
+  ammo behavior and unchanged ammo in client; do not promise it from mocks.
+- Prefer native WoW equipment sets with non-weapon slots ignored. If the client
+  lacks the required support, report that limitation and agree on an alternative;
+  do not silently substitute an AddOn-only set store.
+- Keep version-dependent API calls behind a small, explicit boundary only where
+  verified differences require it. Avoid a speculative multi-client framework.
+- Respect protected actions, hardware-event requirements, and combat lockdown.
+  Never bypass restrictions or promise combat swapping without verification.
+  Repeated owner-reported same-set comparisons confirm that custom WSF UI swaps
+  fail in combat with generic WSF feedback referring to bag space, while native
+  `/equipset [noequipped:shield] Shield-Set; DPS-Set` works on this beta.
+  This supersedes authorization for direct WSF combat API testing. Equip through
+  WSF only out of combat; recommend native `/equipset` or the owner's macro in combat.
+  Pinned source documents a secure native slash path versus WSF's ordinary UI
+  callback. Do not claim that the internal permission root cause is established.
+  Do not add macro workarounds, secure-macro support, deferred queues, or frameworks.
+
+## Clean coding
+
+- Use Lua syntax and libraries supported by the verified game runtime.
+- Prefer readable names, small focused functions, guard clauses, and explicit
+  state transitions. Separate command parsing, equipment operations, and UI
+  responsibilities without unnecessary layers.
+- Use four spaces for indentation. Prefer local variables and functions; use
+  the AddOn namespace for shared state. Expose globals only when WoW requires
+  them, and prefix AddOn-owned globals with `WeaponSetsForever` or `WSF`.
+- Centralize meaningful constants; avoid unexplained slot IDs and magic values.
+- Comment sparingly: explain non-obvious intent, API constraints, or tradeoffs,
+  not what an obvious statement does.
+- Prefer native APIs and no runtime dependencies. Justify any new dependency.
+- Use event-driven work. Avoid continuous polling, idle `OnUpdate` handlers,
+  unnecessary bag scans, and premature micro-optimization.
+
+## Safety and error reporting
+
+- Validate commands, names, required APIs, and operation preconditions before
+  mutating equipment or saved sets. Fail fast when invariants are broken.
+- Treat invalid input, unknown sets, unavailable items, item locks, full bags,
+  set limits, and combat restrictions as expected failures: stop and provide
+  concise, actionable feedback prefixed with `WSF`.
+- Distinguish expected failures from programming defects. Preserve useful
+  diagnostics through WoW's error reporting; never swallow errors with blanket
+  `pcall` handlers or replace the global error handler. A narrow protected save
+  region may attempt shared-flag restoration before rethrowing programming defects.
+  Never hide restoration errors.
+- On an unsupported client, disable unsafe operations and report the missing
+  capability once rather than generating repeated event errors.
+- Do not report success until API results/events or verified state establish
+  completion. Report partial equipment changes honestly; do not assume atomic
+  swaps or attempt unverified rollback.
+- Block saves in combat and when `PaperDollFrame.EquipmentManagerPane:IsVisible()`.
+  UI checks at prompt open and acceptance; core must also check before mutation.
+  Report: close the Equipment Manager pane before saving. Do not hide it for the user.
+  Native synchronous set-change handlers can change shared save-ignore flags.
+- Preserve Blizzard Equipment Manager's shared ignore-slot state if temporarily
+  modifying it. Restore it on success and failure.
+- Core checks `WSF.available` at PLAYER_LOGIN. UI must not rely on event
+  handler order for its initial availability update. Guard C_Timer.After before
+  use; a missing timer API disables core operations without a UI exception.
+- `WSF.Save(name)` returns bool/error synchronously after verifying the saved
+  configuration and does not print. UI owns its save feedback through WSF.Report.
+- `WSF.GetWeaponSets()` returns a dense array of {id, name}, or nil/error.
+- `WSF.Equip(id)` returns bool/error. `Equipment.PrepareEquip` must reject combat
+  before calling `C_EquipmentSet.UseEquipmentSet`, with the exact error
+  `WSF cannot equip from its UI in combat. Use native /equipset instead.`
+  Out of combat, delegate to the native API. Retain weapon-only validation,
+  missing-item, item-lock, casting, and completion checks. Respect native restrictions.
+  Core owns all equip failure and completion feedback; UI adds none.
+  Completion uses native bool/event results and isEquipped. Permit one five-second
+  fallback check for a pending accepted swap, not idle polling.
+- Explicit owner-approved policy: saving an existing name overwrites that
+  character's native set regardless of creator, without extra confirmation.
+  Replace its saved configuration with a weapon-only snapshot after validation;
+  saving must not mutate currently equipped gear.
+- Preserve intentionally empty supported weapon slots; do not confuse an empty
+  slot, ignored slot, unavailable item data, and an unsupported slot.
+- Use native per-character sets with no SavedVariables for this scope.
+  Do not add persisted metadata or an AddOn-only set store without agreement.
+  Never commit player data, credentials, or upload tokens.
+
+## UI policy
+
+- Use custom dark-brown save and equip panels with gold borders and headings,
+  warm text, and subtle separators. Use the exact heading `Weapon Sets Forever`.
+  Do not use the singular `Weapon Set Forever`.
+- Keep native `WSF Save` and `WSF Equip` buttons, their placement, size 120x28,
+  and bottom offset 90 unchanged. Add no runtime assets or dependencies without
+  agreement. Approved publishing artwork stays separate from the runtime.
+- Do not use StaticPopup dialogs for WSF. Leave Blizzard's native dialogs untouched.
+- The save panel exposes `.editBox`, `.saveButton`, and `.cancelButton`.
+  Validate the literal name before `WSF.Save`. Validation and save failures
+  preserve input and focus. Save and Enter use the same acceptance path.
+- Expose only the two prefixed panel globals needed by `UISpecialFrames` for
+  Escape support. Keep other UI frames and controls local or on their parent.
+- Parent hiding closes both panels. Combat entry hides only the save panel;
+  the equip list remains open and can also open and be browsed in combat.
+  Selecting a row in combat is blocked by core with one clear message and no
+  native equip API call. Keep combat and manager-pane save guards unchanged.
+- The equip tooltip must say UI equipping is out of combat only and recommend
+  native `/equipset` or player macros for combat.
+- Require new in-client checks for panel colors, heading, layout, combat UI,
+  native action restrictions, and taint. Mocks do not prove these results.
+- Preserve the early-set armor warning: re-save old experimental sets before
+  combat use. Updating the AddOn does not rewrite sets. Native `/equipset`
+  bypasses WSF validation; the cause of the earlier armor removal is unknown.
+
+## Testing and documentation
+
+- Focused tests exist at `tests/run.lua` and require Lua 5.1. From the Git Bash
+  repository root, run
+  `.tools/luarocks-3.13.0-win32/win32/lua5.1/bin/lua5.1.exe tests/run.lua`.
+  Use the bundled luac5.1.exe for syntax checks. Keep development tooling out of
+  runtime packages. Use TESTING.md for provenance and dated test results.
+- Release helpers/unit tests use Python 3 standard library only, not runtime
+  dependencies. Run `python3 -m unittest discover -s tests -p 'test_*.py'`.
+  Local Windows tooling is portable Python 3.13.7 under ignored
+  .tools/python-3.13.7/, from a reviewed official python.org archive, without an
+  installer/PATH change. CI uses ubuntu-24.04 native python3 and apt lua5.1;
+  never try to run local Windows binaries there.
+- The parent reports 2026-10-13 local validation passed all 62 Python tests
+  (22 builder, 30 CurseForge, 10 provenance) and Python compilation under portable
+  Python 3.13.7. actionlint 1.7.12 passed silently after the latest source-commit
+  and tag-check workflow edits. Python's reviewed official archive is
+  https://www.python.org/ftp/python/3.13.7/python-3.13.7-embed-amd64.zip;
+  actionlint came from its official v1.7.12 release:
+  https://github.com/rhysd/actionlint/releases/tag/v1.7.12.
+- The parent reports the local builder validated the exact six-file
+  WeaponSetsForever-0.1.0-beta.zip, SHA-256
+  ccebf3646175de74b2ff27c7f497c33ac80f63fba2c584a009604e33ce4f74cf.
+  Its manifest omits source_commit because local main has no commits; CI supplies
+  the actual GITHUB_SHA, not a commit derived from the ZIP.
+- No GitHub-hosted CI run or live-service upload has been tested. Local mocks,
+  compilation, lint, and ZIP validation do not establish remote publication,
+  approval-gate enforcement, or full client compatibility. Required reviewers,
+  opt-in flags, and CurseForge IDs/token remain owner setup requirements.
+- Add focused tests alongside executable behavior, using minimal WoW API mocks
+  for pure parsing and equipment-operation logic where appropriate.
+- Cover quoted multi-word names, argument delimiters, malformed quoting, extra
+  arguments, invalid input, overwrite behavior regardless of creator, missing APIs,
+  empty slots, two-handed/off-hand transitions, duplicate items, unavailable or
+  locked items, full bags, set limits, shared-state restoration, and failed or
+  partial swaps. Add regressions for combat equip rejection before the native
+  API call, one core message, combat list browsing/visibility, and tooltip guidance.
+- In-client checks are required for UI placement, native set persistence,
+  protected actions, combat restrictions, taint, and actual equipment changes.
+- Verify UI and slash saves use the same WSF.Save behavior. Verify UI equip and
+  native /equipset leave non-weapon gear unchanged without assuming identical
+  combat permissions or validation paths. Check persistence after `/reload` and
+  relogging, and verify identically named sets remain isolated between characters.
+- Runtime installation uses WeaponSetsForever.toc plus Commands.lua,
+  Equipment.lua, Core.lua, and UI.lua in Interface/AddOns/WeaponSetsForever/.
+  TOC Interface is 16001; load Commands, Equipment, Core, then UI.
+- Keep README usage and compatibility claims aligned with implementation.
+  Record the build tested and distinguish automated tests from in-client checks.
+- Run available focused checks and report actual results. Never invent tooling,
+  test commands, passing results, or compatibility claims.
+
+## Releases and collaboration
+
+- Read docs/RELEASE_PLAN.md before packaging or changing release automation. It
+  documents installed tooling/setup and retains historical proposal sections;
+  it is not authorization to publish. Validate the exact ZIP allowlist and
+  service version metadata before any upload.
+- Make focused changes; preserve user work and avoid unrelated refactors.
+- Do not create branches, commits, tags, uploads, or public releases unless asked.
+- Use authorized tagged GitHub Releases containing installable ZIP assets with a
+  top-level `WeaponSetsForever/` folder and correctly named TOC. GitHub source archives
+  are not a substitute for an installable release package.
+- Package only WeaponSetsForever.toc, Commands.lua, Equipment.lua, Core.lua,
+  UI.lua, and LICENSE under the top-level WeaponSetsForever/ folder. Exclude
+  .tools/, tests/, docs/, artwork/, agent guidance, and other development-only files.
+  Do not load LICENSE through the TOC.
+- Use artwork/ for original logo sources and distribution images. Do not replace
+  the built-in runtime icon with publishing artwork without a separate request.
+- Advertise only tested client versions and verify Forever support in each
+  distribution service. Keep release notes clear about beta-only support,
+  out-of-combat WSF UI equips, native combat macros, and re-saving early sets.
+- Installed CI tests/builds main pushes, PRs, and manual runs with contents: read.
+  v* tag builds require the builder's version to match the TOC and the commit to
+  be an ancestor of origin/main. Checkout/upload/download Actions are full-SHA
+  pinned, with pins verified against GitHub API; review any future pin changes.
+- Publishing requires repository variables ENABLE_GITHUB_RELEASES='true' and,
+  for CurseForge, ENABLE_CURSEFORGE_UPLOADS='true'. Both jobs use environment
+  release. The owner must configure required reviewers and verify the gate works
+  before enabling either flag; an environment declaration alone is not gating.
+  CurseForge also requires the GitHub publisher to succeed.
+- GitHub publishing uses contents: write, built-in GITHUB_TOKEN, and hosted gh;
+  local gh authentication is not needed for CI. CurseForge requires positive
+  CURSEFORGE_PROJECT_ID and CURSEFORGE_GAME_VERSION_ID repository variables plus
+  release-environment secret CF_API_TOKEN. The uploader verifies server version
+  1.60.1/type 88568, refuses redirects, never retries POST, and retains receipts.
+  The workflow permits CurseForge only on the first run attempt. Do not blindly
+  rerun, replace existing releases, or create conflicting uploads.
+- scripts/build_release.py creates deterministic ZIP bytes for the same inputs/
+  toolchain plus checksum, manifest, and notes outside the ZIP. Optional
+  --source-commit records a real full SHA (GITHUB_SHA in CI), not proof derived
+  from ZIP contents. scripts/verify_release.py checks the artifact, manifest,
+  checksum, source commit, and remote tag, peeling annotated or lightweight tags.
+  CI rechecks before GitHub draft creation, before making it public, and before
+  CurseForge upload. Require immutable release tags: restrict creation to
+  maintainers and restrict updates/deletions. These checks are not atomic with
+  publication and cannot eliminate a tag-movement race.
+- Store publisher tokens only in GitHub Actions secrets; keep build jobs secret-
+  free and use least-privilege permissions. Follow exact setup/recovery steps in
+  docs/RELEASE_PLAN.md; retain artifacts and inspect remote results before retries.
+- The owner selected the MIT License. Preserve the copyright notice and include
+  LICENSE in distributed copies and installable release packages.
+- Commit messages, when requested: imperative, capitalized subject, ideally at
+  most 50 characters, no ending punctuation; add a short 72-column-wrapped body
+  only when useful. A commit-message-only request gets only the message.
+
+## References
+
+- [WoW AddOn API](https://warcraft.wiki.gg/wiki/World_of_Warcraft_API)
+- [Equipment-set API](https://warcraft.wiki.gg/wiki/World_of_Warcraft_API#EquipmentSet)
+- [Blizzard UI source mirror](https://github.com/Gethe/wow-ui-source)
+- [BigWigs AddOn packager](https://github.com/BigWigsMods/packager)
+- [WoWUp Hub developer guidance](https://wowup.io/guide/wowup/hub)

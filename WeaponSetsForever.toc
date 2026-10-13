@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Weapon Sets Forever
+## Notes: Save native weapon-only equipment sets for WOW Forever
+## Author: John Bedworth
+## Version: 0.1.0-beta
+## IconTexture: Interface\Icons\INV_Sword_04
+## Category: Inventory
+
+Commands.lua
+Equipment.lua
+Core.lua
+UI.lua

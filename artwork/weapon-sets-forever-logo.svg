@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">Weapon Sets Forever</title>
+  <desc id="description">An original gold shield and crossed swords on a rich dark-brown field, framed by a fine gold border.</desc>
+  <defs>
+    <radialGradient id="background" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#49301c"/>
+      <stop offset="0.6" stop-color="#2b190f"/>
+      <stop offset="1" stop-color="#170e09"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4d38b"/>
+      <stop offset="0.32" stop-color="#d5a956"/>
+      <stop offset="0.64" stop-color="#96703a"/>
+      <stop offset="1" stop-color="#e9bf6a"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9a7035"/>
+      <stop offset="0.48" stop-color="#f5dc9c"/>
+      <stop offset="0.52" stop-color="#d9b364"/>
+      <stop offset="1" stop-color="#9a7035"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#573a21"/>
+      <stop offset="0.5" stop-color="#322014"/>
+      <stop offset="1" stop-color="#1d120c"/>
+    </linearGradient>
+    <filter id="shadow" x="-35%" y="-35%" width="170%" height="170%">
+      <feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#080502" flood-opacity="0.7"/>
+    </filter>
+    <g id="sword">
+      <path d="M0 -390 L28 -324 L24 88 L0 116 L-24 88 L-28 -324 Z" fill="url(#blade)" stroke="#21130a" stroke-width="9" stroke-linejoin="round"/>
+      <path d="M0 -350 L0 86" fill="none" stroke="#fff0b8" stroke-opacity="0.45" stroke-width="3"/>
+      <path d="M-74 83 Q-41 68 0 77 Q41 68 74 83 L82 112 Q41 96 0 101 Q-41 96 -82 112 Z" fill="url(#gold)" stroke="#21130a" stroke-width="7" stroke-linejoin="round"/>
+      <path d="M-16 103 L16 103 L19 214 L-19 214 Z" fill="#342013" stroke="#bf934a" stroke-width="6"/>
+      <path d="M-14 125 L14 133 M-15 148 L15 156 M-16 171 L16 179 M-17 194 L17 202" stroke="#b98b43" stroke-width="5"/>
+      <path d="M0 209 L27 232 L0 258 L-27 232 Z" fill="url(#gold)" stroke="#21130a" stroke-width="7" stroke-linejoin="round"/>
+    </g>
+  </defs>
+  <path d="M0 0H1024V1024H0Z" fill="url(#background)"/>
+  <rect x="46" y="46" width="932" height="932" rx="94" fill="none" stroke="url(#gold)" stroke-width="5"/>
+  <rect x="62" y="62" width="900" height="900" rx="80" fill="none" stroke="#b48b45" stroke-opacity="0.28" stroke-width="2"/>
+  <circle cx="512" cy="505" r="344" fill="none" stroke="#c19a54" stroke-opacity="0.12" stroke-width="2"/>
+  <path d="M512 91 L525 108 L512 125 L499 108 Z M512 899 L525 916 L512 933 L499 916 Z" fill="url(#gold)"/>
+  <g filter="url(#shadow)">
+    <use href="#sword" transform="translate(512 506) rotate(-43)"/>
+    <use href="#sword" transform="translate(512 506) rotate(43)"/>
+    <path d="M512 323 Q588 371 686 374 L676 524 Q666 681 512 786 Q358 681 348 524 L338 374 Q436 371 512 323 Z" fill="url(#gold)" stroke="#201208" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M512 350 Q580 392 657 399 L648 524 Q640 657 512 748 Q384 657 376 524 L367 399 Q444 392 512 350 Z" fill="url(#shield)" stroke="#f0ca78" stroke-opacity="0.65" stroke-width="3"/>
+    <path d="M512 380 L512 710" fill="none" stroke="#c09a54" stroke-opacity="0.24" stroke-width="2"/>
+    <path d="M405 426 Q454 416 484 398" fill="none" stroke="#f5dba1" stroke-opacity="0.19" stroke-width="4" stroke-linecap="round"/>
+    <path d="M512 431 L532 488 L590 508 L532 528 L512 585 L492 528 L434 508 L492 488 Z" fill="url(#gold)"/>
+    <path d="M512 475 L525 508 L512 541 L499 508 Z" fill="#2b1a0f"/>
+    <path d="M512 616 L532 638 L512 660 L492 638 Z" fill="url(#gold)"/>
+  </g>
+  <path d="M359 850H457 M567 850H665" fill="none" stroke="#b98e47" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round"/>
+  <path d="M512 837 L524 850 L512 863 L500 850 Z" fill="url(#gold)"/>
+</svg>
