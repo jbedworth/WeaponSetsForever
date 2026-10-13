@@ -238,6 +238,234 @@ function WSF.GetWeaponSets()
     return result
 end
 
+local EncodeJSON
+
+local function EncodeString(text)
+    -- Escaping | keeps chat from reading it as a UI escape sequence.
+    return '"' .. text:gsub('[%c"\\|]', function(character)
+        if character == '"' or character == "\\" then
+            return "\\" .. character
+        end
+        return string.format("\\u%04x", character:byte())
+    end) .. '"'
+end
+
+local function EncodeNumber(number)
+    if number ~= number or number == math.huge or number == -math.huge then
+        return "null"
+    end
+    -- %d can overflow a 32-bit C long in Lua 5.1; %.0f is exact for integers below 2^53.
+    if number == math.floor(number) and math.abs(number) < 2 ^ 53 then
+        return string.format("%.0f", number)
+    end
+    return string.format("%.17g", number)
+end
+
+local function SortKeys(left, right)
+    if type(left) == type(right) and (type(left) == "number" or type(left) == "string") then
+        return left < right
+    end
+    return type(left) == "number"
+end
+
+-- Equipment slots appear as keys even when absent so sparse native tables stay visible.
+local function EncodeSlotTable(source, encodeValue)
+    encodeValue = encodeValue or EncodeJSON
+    if type(source) ~= "table" then
+        return EncodeJSON(source)
+    end
+    local keys = {}
+    for slot = FIRST_SLOT, LAST_SLOT do
+        keys[#keys + 1] = slot
+    end
+    for key in pairs(source) do
+        if type(key) ~= "number" or key < FIRST_SLOT or key > LAST_SLOT
+            or key ~= math.floor(key) then
+            keys[#keys + 1] = key
+        end
+    end
+    table.sort(keys, SortKeys)
+    local fields = {}
+    for _, key in ipairs(keys) do
+        fields[#fields + 1] = EncodeString(tostring(key)) .. ":" .. encodeValue(source[key])
+    end
+    return "{" .. table.concat(fields, ",") .. "}"
+end
+
+function EncodeJSON(value)
+    local kind = type(value)
+    if kind == "nil" then
+        return "null"
+    elseif kind == "boolean" then
+        return tostring(value)
+    elseif kind == "number" then
+        return EncodeNumber(value)
+    elseif kind == "string" then
+        return EncodeString(value)
+    elseif kind == "table" then
+        local keys = {}
+        for key in pairs(value) do
+            keys[#keys + 1] = key
+        end
+        table.sort(keys, SortKeys)
+        local fields = {}
+        for _, key in ipairs(keys) do
+            fields[#fields + 1] = EncodeString(tostring(key)) .. ":" .. EncodeJSON(value[key])
+        end
+        return "{" .. table.concat(fields, ",") .. "}"
+    end
+    return EncodeString(tostring(value))
+end
+
+-- Encodes {key, value} pairs in the given order, for readable diagnostics.
+local function EncodeFields(pairsList)
+    local fields = {}
+    for _, field in ipairs(pairsList) do
+        fields[#fields + 1] = EncodeString(field[1]) .. ":" .. EncodeJSON(field[2])
+    end
+    return "{" .. table.concat(fields, ",") .. "}"
+end
+
+-- Return order from the pinned EquipmentManagerDocumentation.lua.
+local SET_INFO_FIELDS = {
+    "name", "iconFileID", "setID", "isEquipped", "numItems",
+    "numEquipped", "numInInventory", "numLost", "numIgnored",
+}
+
+-- Counts returns with select so trailing nils and undocumented extras stay visible.
+local function EncodeSetInfo(...)
+    local count = select("#", ...)
+    local fields = {}
+    for index, field in ipairs(SET_INFO_FIELDS) do
+        fields[index] = {field, (select(index, ...))}
+    end
+    if count > #SET_INFO_FIELDS then
+        local extra = {}
+        for index = #SET_INFO_FIELDS + 1, count do
+            extra[#extra + 1] = EncodeJSON((select(index, ...)))
+        end
+        return EncodeFields(fields):sub(1, -2)
+            .. ',"extraReturns":[' .. table.concat(extra, ",") .. "]}"
+    end
+    return EncodeFields(fields)
+end
+
+-- Packed-location bits from the pinned Blizzard_FrameXMLBase/Constants.lua.
+-- Arithmetic replaces bit operations, which plain Lua 5.1 lacks.
+local LOCATION_PLAYER = 2 ^ 20 -- ITEM_INVENTORY_LOCATION_PLAYER, 0x00100000
+local LOCATION_BAGS = 2 ^ 21 -- ITEM_INVENTORY_LOCATION_BAGS, 0x00200000
+local LOCATION_BANK = 2 ^ 22 -- ITEM_INVENTORY_LOCATION_BANK, 0x00400000
+local BAG_FACTOR = 2 ^ 8 -- ITEM_INVENTORY_BAG_BIT_OFFSET is 8
+local BYTE = 2 ^ 8
+local LOCATION_SENTINELS = {
+    [MISSING_ITEM] = "missing", [EMPTY_SLOT] = "empty", [IGNORED_SLOT] = "ignored",
+}
+
+local function Hex(number)
+    local digits = ""
+    repeat
+        local digit = number % 16
+        digits = ("0123456789abcdef"):sub(digit + 1, digit + 1) .. digits
+        number = math.floor(number / 16)
+    until number == 0
+    return "0x" .. digits
+end
+
+local function HasFlag(value, flag)
+    return math.floor(value / flag) % 2 == 1
+end
+
+local function EncodeLocation(location)
+    if location == nil then
+        return "null"
+    end
+    if type(location) ~= "number" or location ~= math.floor(location)
+        or location < MISSING_ITEM or location >= 2 ^ 53 then
+        return EncodeFields({{"kind", "unknown"}})
+    end
+    if LOCATION_SENTINELS[location] then
+        return EncodeFields({{"kind", LOCATION_SENTINELS[location]}})
+    end
+    local player = HasFlag(location, LOCATION_PLAYER)
+    local bags = HasFlag(location, LOCATION_BAGS)
+    local bank = HasFlag(location, LOCATION_BANK)
+    local slot = location % BYTE
+    local bag = math.floor(location / BAG_FACTOR) % BYTE
+    local other = location - slot - bag * BAG_FACTOR - (player and LOCATION_PLAYER or 0)
+        - (bags and LOCATION_BAGS or 0) - (bank and LOCATION_BANK or 0)
+    local kind = bank and "bank" or bags and "bags" or player and "equipped" or "unknown"
+    local fields = {
+        {"kind", kind}, {"hex", Hex(location)}, {"player", player}, {"bags", bags},
+        {"bank", bank}, {"bag", bag}, {"slot", slot},
+    }
+    if other ~= 0 then
+        fields[#fields + 1] = {"otherBits", Hex(other)}
+    end
+    return EncodeFields(fields)
+end
+
+local function EncodeClient()
+    local version, build, _, interface = GetBuildInfo()
+    return EncodeFields({{"version", version}, {"build", build}, {"interface", interface}})
+end
+
+local function EncodeCurrentGear()
+    local current = {}
+    for slot = FIRST_SLOT, LAST_SLOT do
+        current[slot] = GetInventoryItemID("player", slot)
+    end
+    return EncodeSlotTable(current)
+end
+
+local function ProbeByID(id, name)
+    local locations = api.GetItemLocations(id)
+    return "{" .. table.concat({
+        '"client":' .. EncodeClient(),
+        '"name":' .. EncodeJSON(name),
+        '"id":' .. EncodeJSON(id),
+        '"info":' .. EncodeSetInfo(api.GetEquipmentSetInfo(id)),
+        '"ignored":' .. EncodeSlotTable(api.GetIgnoredSlots(id)),
+        '"locations":' .. EncodeSlotTable(locations),
+        '"decodedLocations":' .. EncodeSlotTable(locations, EncodeLocation),
+        '"items":' .. EncodeSlotTable(api.GetItemIDs(id)),
+        '"current":' .. EncodeCurrentGear(),
+    }, ",") .. "}"
+end
+
+-- Read-only diagnostic: raw native set tables, unvalidated, plus current gear.
+function WSF.ProbeSet(name)
+    local ready, message = Ready()
+    if not ready then
+        return nil, message
+    end
+    local id = api.GetEquipmentSetID(name)
+    if id == nil then
+        return nil, "No equipment set is named " .. name .. "."
+    end
+    return ProbeByID(id, name)
+end
+
+-- Returns one probe per set the client reports as equipped. Overlapping
+-- weapon-only sets can all be equipped at once. With none, it reports gear only.
+function WSF.ProbeEquipped()
+    local ready, message = Ready()
+    if not ready then
+        return nil, message
+    end
+    local probes = {}
+    for _, id in ipairs(api.GetEquipmentSetIDs()) do
+        local name, _, _, isEquipped = api.GetEquipmentSetInfo(id)
+        if name and isEquipped == true then
+            probes[#probes + 1] = ProbeByID(id, name)
+        end
+    end
+    if #probes == 0 then
+        probes[1] = '{"client":' .. EncodeClient() .. ',"name":null,"id":null,"current":'
+            .. EncodeCurrentGear() .. "}"
+    end
+    return probes
+end
+
 function WSF.PrepareEquip(id)
     local ready, message = Ready()
     if not ready then

@@ -1806,6 +1806,268 @@ test("beta missing sentinel is not treated as omitted empty", function()
     noMutation(state, function() rejected(state.wsf.PrepareEquip(7)) end)
 end)
 
+local acceptedProbes = {
+    {"debug_probe Daggers", "Daggers"}, {"DEBUG_PROBE Daggers", "Daggers"},
+    {'  debug_probe\t"Tank Weapons"  ', "Tank Weapons"},
+    {"debug_probe " .. string.rep("a", 17), string.rep("a", 17)},
+    {"debug_probe A|B", "A|B"},
+    {"export Daggers", "Daggers"}, {'EXPORT "Tank Weapons"', "Tank Weapons"},
+}
+for index, case in ipairs(acceptedProbes) do
+    local input, expected = case[1], case[2]
+    test("probe parser accepts case " .. index, function()
+        local valid, name = fixture().wsf.ParseProbeCommand(input)
+        equal(valid, true)
+        equal(name, expected)
+    end)
+end
+for _, input in ipairs({"debug_probe", " DEBUG_PROBE \t", "export", " Export "}) do
+    local message = input
+    test("probe parser accepts no argument: " .. message, function()
+        local valid, name = fixture().wsf.ParseProbeCommand(message)
+        equal(valid, true)
+        equal(name, nil)
+    end)
+end
+local invalidProbes = {
+    'debug_probe ""', 'debug_probe "   "',
+    "debug_probe Tank Weapons", 'debug_probe "Name" extra', 'debug_probe "Name',
+    'debug_probe Na"me', 'debug_probe "a\nb"',
+}
+for index, input in ipairs(invalidProbes) do
+    local message = input
+    test("probe parser rejects case " .. index .. " with one usage message", function()
+        local state = fixture()
+        noMutation(state, function()
+            rejected(state.wsf.ParseProbeCommand(message))
+            state.wsf.HandleCommand(message)
+        end)
+        onlyFailure(state, "Use /wsf debug_probe")
+    end)
+end
+for _, input in ipairs({'export ""', "export Tank Weapons", 'EXPORT "Name'}) do
+    local message = input
+    test("export rejects malformed name with export usage: " .. message, function()
+        local state = fixture()
+        noMutation(state, function() state.wsf.HandleCommand(message) end)
+        onlyFailure(state, "Use /wsf export, /wsf export Name,")
+    end)
+end
+test("export and debug_probe print identical JSON with the typed command word", function()
+    local state = fixture()
+    state.addSet(7, "Other")
+    state.addSet(8, "Weapons").equipped = true
+    for _, arguments in ipairs({"", " Weapons", ' "Other"'}) do
+        state.messages = {}
+        noMutation(state, function()
+            state.wsf.HandleCommand("debug_probe" .. arguments)
+            state.wsf.HandleCommand("EXPORT" .. arguments)
+        end)
+        equal(#state.messages, 2)
+        local probe = state.messages[1]:match("^WSF: debug_probe (.+)$")
+        equal(state.messages[2], "WSF: export " .. probe)
+    end
+end)
+test("export reports unknown sets once", function()
+    local state = fixture()
+    noMutation(state, function() state.wsf.HandleCommand("export Missing") end)
+    onlyFailure(state, "No equipment set is named Missing.")
+end)
+for _, input in ipairs({'debug_probe"Name"', "debug_probeName", "exportName", "exports"}) do
+    local message = input
+    test("unseparated probe word is an unknown command: " .. message, function()
+        local state = fixture()
+        rejected(state.wsf.ParseProbeCommand(message))
+        noMutation(state, function() state.wsf.HandleCommand(message) end)
+        onlyFailure(state, "Use /wsf save")
+    end)
+end
+test("save parser does not accept the probe command", function()
+    rejected(fixture().wsf.ParseSaveCommand("debug_probe Daggers"))
+end)
+
+local function slotJSON(values)
+    local fields = {}
+    for slot = 1, 19 do
+        local value = values[slot]
+        fields[#fields + 1] = '"' .. slot .. '":' .. (value == nil and "null" or tostring(value))
+    end
+    return "{" .. table.concat(fields, ",") .. "}"
+end
+
+test("probe prints raw sparse native tables and current gear without mutation", function()
+    local state = fixture()
+    state.gear[16], state.gear[17], state.gear[18] = 2011, 6320, nil
+    state.afterSave = function(id)
+        local entry = state.sets[id]
+        entry.locations[16], entry.locations[17] = 1048592, 1048593
+        betaSparseTables(entry)
+    end
+    equal(state.wsf.Save("Shield-Set"), true)
+    state.messages = {}
+    local ignored, current = {}, {}
+    for slot = 1, 19 do
+        ignored[slot] = not weapon(slot)
+        current[slot] = state.gear[slot]
+    end
+    local equipped = '{"kind":"equipped","hex":"0x1000%s","player":true,"bags":false,'
+        .. '"bank":false,"bag":0,"slot":%d}'
+    local expected = "WSF: debug_probe {"
+        .. '"client":{"version":"1.60.1","build":"70338","interface":16001},'
+        .. '"name":"Shield-Set","id":100,"info":{"name":"Shield-Set","iconFileID":"icon",'
+        .. '"setID":100,"isEquipped":false,"numItems":null,"numEquipped":null,'
+        .. '"numInInventory":null,"numLost":null,"numIgnored":null},'
+        .. '"ignored":' .. slotJSON(ignored) .. ","
+        .. '"locations":' .. slotJSON({[16] = 1048592, [17] = 1048593}) .. ","
+        .. '"decodedLocations":' .. slotJSON({
+            [16] = equipped:format("10", 16), [17] = equipped:format("11", 17),
+        }) .. ","
+        .. '"items":' .. slotJSON({[16] = 2011, [17] = 6320}) .. ","
+        .. '"current":' .. slotJSON(current) .. "}"
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe Shield-Set") end)
+    same(state.messages, {expected})
+end)
+
+test("probe shows full outfits and unexpected keys without validating them", function()
+    local state = fixture()
+    local entry = state.addSet(7, "Outfit", true)
+    entry.items[0], entry.items.extra, entry.items[16] = 55, "x", 0 / 0
+    local json = state.wsf.ProbeSet("Outfit")
+    contains(json, '"items":{"0":55,"1":1001,')
+    contains(json, '"16":null,')
+    contains(json, '"19":1019,"extra":"x"}')
+    contains(json, '"ignored":{"1":null,')
+end)
+
+test("probe names all documented set info returns from client output", function()
+    local state = fixture()
+    state.addSet(1, "Ranged")
+    state.env.C_EquipmentSet.GetEquipmentSetInfo = function()
+        return "Ranged", 134400, 1, false, 3, 2, 1, 0, 0
+    end
+    contains(state.wsf.ProbeSet("Ranged"), '"info":{"name":"Ranged","iconFileID":134400,'
+        .. '"setID":1,"isEquipped":false,"numItems":3,"numEquipped":2,'
+        .. '"numInInventory":1,"numLost":0,"numIgnored":0},')
+end)
+
+test("probe keeps undocumented extra set info returns, including trailing nil", function()
+    local state = fixture()
+    state.addSet(1, "Ranged")
+    state.env.C_EquipmentSet.GetEquipmentSetInfo = function()
+        return "Ranged", 134400, 1, false, 3, 2, 1, 0, 0, "new", nil
+    end
+    contains(state.wsf.ProbeSet("Ranged"), '"numIgnored":0,"extraReturns":["new",null]},')
+end)
+
+local decodedLocations = {
+    {3146499, '{"kind":"bags","hex":"0x300303","player":true,"bags":true,'
+        .. '"bank":false,"bag":3,"slot":3}'},
+    {1048592 + 2 ^ 22, '{"kind":"bank","hex":"0x500010","player":true,"bags":false,'
+        .. '"bank":true,"bag":0,"slot":16}'},
+    {1048592 + 2 ^ 23, '{"kind":"equipped","hex":"0x900010","player":true,"bags":false,'
+        .. '"bank":false,"bag":0,"slot":16,"otherBits":"0x800000"}'},
+    {0, '{"kind":"empty"}'}, {1, '{"kind":"ignored"}'}, {-1, '{"kind":"missing"}'},
+    {-2, '{"kind":"unknown"}'}, {2.5, '{"kind":"unknown"}'}, {"x", '{"kind":"unknown"}'},
+}
+for index, case in ipairs(decodedLocations) do
+    local location, expected = case[1], case[2]
+    test("probe decodes location case " .. index, function()
+        local state = fixture()
+        local entry = state.addSet(7, "Weapons")
+        entry.locations[18] = location
+        contains(state.wsf.ProbeSet("Weapons"), '"18":' .. expected .. ',"19":')
+    end)
+end
+
+test("probe escapes JSON and chat control characters in native names", function()
+    local state = fixture()
+    local name = 'A"B\\C|D\tE'
+    state.addSet(7, name)
+    local json = state.wsf.ProbeSet(name)
+    contains(json, '"name":"A\\"B\\\\C\\u007cD\\u0009E"')
+    equal(json:find("|", 1, true), nil, "raw | would start a chat escape")
+end)
+
+test("probe reports unknown sets once without mutation", function()
+    local state = fixture()
+    noMutation(state, function() state.wsf.HandleCommand('debug_probe "No Such Set"') end)
+    onlyFailure(state, "No equipment set is named No Such Set.")
+end)
+
+test("probe is read-only and permitted in combat", function()
+    local state = fixture()
+    state.addSet(7, "Weapons")
+    state.combat = true
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe Weapons") end)
+    equal(#state.messages, 1)
+    contains(state.messages[1], 'WSF: debug_probe {"client":')
+end)
+
+for _, input in ipairs({"debug_probe Weapons", "debug_probe"}) do
+    local message = input
+    test("probe requires login availability: " .. message, function()
+        local state = fixture(false)
+        state.addSet(7, "Weapons")
+        noMutation(state, function() state.wsf.HandleCommand(message) end)
+        onlyFailure(state, "unavailable")
+    end)
+end
+
+local function currentGearJSON(state)
+    local current = {}
+    for slot = 1, 19 do current[slot] = state.gear[slot] end
+    return slotJSON(current)
+end
+
+test("probe without a name reports current gear when no set is equipped", function()
+    local state = fixture()
+    state.addSet(7, "Weapons")
+    -- Only a literal true flag counts as equipped.
+    state.env.C_EquipmentSet.GetEquipmentSetInfo = function(id)
+        return state.sets[id].name, "icon", id, 1
+    end
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe") end)
+    same(state.messages, {'WSF: debug_probe {"client":{"version":"1.60.1","build":"70338",'
+        .. '"interface":16001},"name":null,"id":null,"current":' .. currentGearJSON(state) .. "}"})
+end)
+
+test("probe without a name reports current gear when there are no sets", function()
+    local state = fixture()
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe") end)
+    equal(#state.messages, 1)
+    contains(state.messages[1], '"name":null,"id":null,"current":')
+end)
+
+test("probe without a name reports the equipped set like a named probe", function()
+    local state = fixture()
+    state.addSet(7, "Other")
+    state.addSet(8, "Weapons").equipped = true
+    state.wsf.HandleCommand("debug_probe Weapons")
+    local named = state.messages[1]
+    state.messages = {}
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe") end)
+    same(state.messages, {named})
+end)
+
+test("probe without a name reports every set the client marks equipped", function()
+    local state = fixture()
+    state.addSet(7, "Alpha").equipped = true
+    state.addSet(8, "Unequipped")
+    state.addSet(9, "Beta").equipped = true
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe") end)
+    equal(#state.messages, 2)
+    contains(state.messages[1], '"name":"Alpha","id":7,')
+    contains(state.messages[2], '"name":"Beta","id":9,')
+end)
+
+test("probe without a name is permitted in combat", function()
+    local state = fixture()
+    state.combat = true
+    noMutation(state, function() state.wsf.HandleCommand("debug_probe") end)
+    equal(#state.messages, 1)
+    contains(state.messages[1], 'WSF: debug_probe {"client":')
+end)
+
 test("source retains native slash ownership without custom combat macro or queue paths", function()
     local function source(path)
         local file = assert(io.open(path, "rb"))
@@ -1814,7 +2076,7 @@ test("source retains native slash ownership without custom combat macro or queue
         return text
     end
     local commands = source("Commands.lua")
-    contains(commands, 'command:lower() ~= "save"')
+    contains(commands, 'command ~= "save"')
     equal(commands:find("equipset", 1, true), nil, "save parser must not parse native equipset")
     local core = source("Core.lua")
     contains(core, 'SLASH_WEAPONSETSFOREVER1 = "/wsf"')

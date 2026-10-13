@@ -2,6 +2,13 @@ local _, WSF = ...
 
 local MAX_NAME_LETTERS = 16
 local SAVE_USAGE = 'Use /wsf save Name or /wsf save "Set Name".'
+-- "export" is the user-facing name; "debug_probe" is the original diagnostic alias.
+local PROBE_COMMANDS = {export = true, debug_probe = true}
+local PROBE_USAGE = 'Use /wsf %s, /wsf %s Name, or /wsf %s "Set Name".'
+
+local function ProbeUsage(command)
+    return PROBE_USAGE:format(command, command, command)
+end
 
 function WSF.ValidateName(name)
     if type(name) ~= "string" or not name:find("%S") then
@@ -17,21 +24,32 @@ function WSF.ValidateName(name)
     return true
 end
 
-function WSF.ParseSaveCommand(message)
+local function SplitCommand(message)
     if type(message) ~= "string" then
-        return nil, SAVE_USAGE
+        return nil
     end
     local command, arguments = message:match("^%s*(%S+)%s*(.-)%s*$")
-    if not command or command:lower() ~= "save" or arguments == "" then
+    if not command then
+        return nil
+    end
+    return command:lower(), arguments
+end
+
+-- Exactly one argument: a bare word or one double-quoted name.
+local function ParseNameArgument(arguments)
+    if arguments:sub(1, 1) == '"' then
+        return arguments:match('^"([^"\r\n]*)"$')
+    elseif arguments ~= "" and not arguments:find('[%s"]') then
+        return arguments
+    end
+end
+
+function WSF.ParseSaveCommand(message)
+    local command, arguments = SplitCommand(message)
+    if command ~= "save" then
         return nil, SAVE_USAGE
     end
-
-    local name
-    if arguments:sub(1, 1) == '"' then
-        name = arguments:match('^"([^"\r\n]*)"$')
-    elseif not arguments:find('[%s"]') then
-        name = arguments
-    end
+    local name = ParseNameArgument(arguments)
     if not name then
         return nil, SAVE_USAGE
     end
@@ -42,7 +60,53 @@ function WSF.ParseSaveCommand(message)
     return name
 end
 
+-- Returns true plus an optional name; no argument means the equipped set or gear.
+-- The probe is read-only, so it accepts any existing native set name.
+function WSF.ParseProbeCommand(message)
+    local command, arguments = SplitCommand(message)
+    if not PROBE_COMMANDS[command] then
+        return nil, ProbeUsage("export")
+    end
+    if arguments == "" then
+        return true, nil
+    end
+    local name = ParseNameArgument(arguments)
+    if not name or not name:find("%S") then
+        return nil, ProbeUsage(command)
+    end
+    return true, name
+end
+
+-- Output lines repeat the command word the user typed.
+local function HandleProbe(command, message)
+    local valid, nameOrError = WSF.ParseProbeCommand(message)
+    if not valid then
+        WSF.Report(nameOrError)
+        return
+    end
+    local probes, probeError
+    if nameOrError then
+        local json
+        json, probeError = WSF.ProbeSet(nameOrError)
+        probes = json and {json}
+    else
+        probes, probeError = WSF.ProbeEquipped()
+    end
+    if not probes then
+        WSF.Report(probeError)
+        return
+    end
+    for _, json in ipairs(probes) do
+        WSF.Report(command .. " " .. json)
+    end
+end
+
 function WSF.HandleCommand(message)
+    local command = SplitCommand(message)
+    if PROBE_COMMANDS[command] then
+        HandleProbe(command, message)
+        return
+    end
     local name, messageText = WSF.ParseSaveCommand(message)
     if not name then
         WSF.Report(messageText)
