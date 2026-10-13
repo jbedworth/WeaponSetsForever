@@ -26,7 +26,10 @@ flowchart TD
 
 ## Package contract
 
-The filename follows the TOC version: `WeaponSetsForever-<version>.zip`.
+The filename follows the TOC version: `WeaponSetsForever-<version>-forever.zip`.
+The `-forever` suffix is one of the two ways WowUp 2.24.0 identifies a GitHub
+asset for a Forever install (`/[-_](forever|camelot)\.zip$/i` in
+`github-addon-provider.ts`); the other is the `release.json` asset described below.
 The archive must contain exactly these files under one top-level folder:
 
 ```text
@@ -86,10 +89,17 @@ the local Windows `.tools/` binaries.
 `scripts/build_release.py` uses the seven-file allowlist, validates the
 TOC/version/license and actual archive, and writes to `dist/`:
 
-- `WeaponSetsForever-<version>.zip`;
+- `WeaponSetsForever-<version>-forever.zip`;
 - the adjacent `.zip.sha256` checksum;
 - `release-manifest.json`;
-- `release-notes.md`.
+- `release-notes.md`;
+- `release.json`, BigWigs-format WowUp metadata naming the ZIP with flavor
+  `forever` and Interface `16001`.
+
+The GitHub release attaches the ZIP, checksum, manifest, and `release.json`.
+WowUp 2.24.0 reads `release.json` first and maps its `forever` flavor to Forever
+installs, falling back to the ZIP-name suffix. The publisher refuses to upload
+unless `release.json` exactly names the verified ZIP.
 
 Only the seven package files are inside the installable ZIP. Checksums, manifest,
 and notes stay outside it. Identical inputs and toolchain produce deterministic
@@ -251,7 +261,7 @@ broader version label.
 | --- | --- | --- |
 | GitHub | Create a release and attach the tested ZIP through Actions. | Publication needs repository permission and an approved version tag. |
 | CurseForge | Upload a new file, changelog, release type, and supported game-version IDs through its Upload API. | The project must exist. Uploads can require moderation; acceptance is not immediate publication. |
-| WoWUp | Make the installable ZIP available as a public GitHub release asset. | Verify current Forever and beta-channel support, repository discovery, and client update detection. No separate WoWUp upload token is established by its Hub guide. |
+| WowUp | Make the installable `-forever.zip` and `release.json` available as public GitHub release assets. | WowUp 2.24.0 or later is required for Forever. Users install by repository URL; when a repo has only prereleases, WowUp uses them. Topics and the social preview image control browse listings. Verify discovery and update detection in the app. No separate WowUp upload token is established by its Hub guide. |
 | Other sites | Add a publisher only when its Forever support and API have been verified. | Do not assume that packager support means every service supports the target client. |
 
 An upload or new GitHub release makes an update available. It does not force an

@@ -148,6 +148,27 @@ def _validate_files(files, expected_version=None):
     return version
 
 
+WOWUP_METADATA_NAME = "release.json"
+
+
+def archive_filename(version):
+    """WowUp 2.24.0 matches GitHub assets named *-forever.zip to Forever installs."""
+    return f"{ADDON}-{version}-forever.zip"
+
+
+def wowup_metadata(version):
+    """BigWigs-format release.json; WowUp maps its "forever" flavor to Forever installs."""
+    return {
+        "releases": [{
+            "name": ADDON,
+            "version": version,
+            "filename": archive_filename(version),
+            "nolib": False,
+            "metadata": [{"flavor": "forever", "interface": INTERFACE}],
+        }],
+    }
+
+
 def _manifest(version, archive_name, digest, tag=""):
     prerelease = version.split("+", 1)[0].partition("-")[2]
     channel = prerelease.split(".", 1)[0] if prerelease else "release"
@@ -210,7 +231,7 @@ def validate_archive(path, expected_version):
             NotImplementedError, EOFError, zlib.error) as error:
         raise ValueError(f"Cannot validate ZIP: {error}") from error
     digest = hashlib.sha256(archive_bytes).hexdigest()
-    return _manifest(version, f"{ADDON}-{version}.zip", digest)
+    return _manifest(version, archive_filename(version), digest)
 
 
 def _release_notes(version):
@@ -252,7 +273,7 @@ def build_release(source_root, output, tag=None, github_output=None, source_comm
     tag = validate_tag(tag, version)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    archive_path = output / f"{ADDON}-{version}.zip"
+    archive_path = output / archive_filename(version)
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED,
                          compresslevel=9) as archive:
         for name in PACKAGE_FILES:
@@ -270,6 +291,8 @@ def build_release(source_root, output, tag=None, github_output=None, source_comm
     _write_text(output / "release-manifest.json",
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     _write_text(output / "release-notes.md", _release_notes(version))
+    _write_text(output / WOWUP_METADATA_NAME,
+                json.dumps(wowup_metadata(version), indent=2) + "\n")
     if github_output is not None:
         # Values come only from validated versions and fixed enum/filename fields.
         with Path(github_output).open("a", encoding="utf-8", newline="\n") as stream:

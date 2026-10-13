@@ -17,6 +17,10 @@ local REQUIRED_APIS = {
     "IsSlotIgnoredForSave", "IgnoreSlotForSave", "UnignoreSlotForSave",
     "EquipmentSetContainsLockedItems", "UseEquipmentSet",
 }
+WSF.WEAPON_SLOT_IDS = {}
+for index, slot in ipairs(WEAPON_SLOTS) do
+    WSF.WEAPON_SLOT_IDS[index] = slot.id
+end
 local weapons = {}
 local api
 local saving = false
@@ -464,6 +468,30 @@ function WSF.ProbeEquipped()
             .. EncodeCurrentGear() .. "}"
     end
     return probes
+end
+
+-- True when every weapon slot holds what the set saved: the same item ID, or
+-- empty where the set saved an empty slot. Any unreadable set data is false.
+function WSF.WeaponsMatchSet(id)
+    if not WSF.available then
+        return false
+    end
+    local entry = ReadSet(id)
+    if not entry then
+        return false
+    end
+    for _, slot in ipairs(WEAPON_SLOTS) do
+        local location = entry.locations[slot.id]
+        local current = GetInventoryItemID("player", slot.id)
+        if location == EMPTY_SLOT then
+            if current ~= nil then
+                return false
+            end
+        elseif location <= IGNORED_SLOT or current ~= entry.items[slot.id] then
+            return false
+        end
+    end
+    return true
 end
 
 function WSF.PrepareEquip(id)

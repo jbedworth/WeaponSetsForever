@@ -43,14 +43,31 @@ unsupported until reviewed and tested.
   A narrow protected save region attempts shared-flag restoration after a
   programming defect, then rethrows. Restoration errors are also rethrown.
 - `Core.lua` starts unavailable and checks capabilities at `PLAYER_LOGIN`.
+  It then prints one banner (`Title Version by Author`, read through
+  `C_AddOns.GetAddOnMetadata`, with a fixed title fallback), followed by a
+  ready hint or the unavailable reason. Metadata never gates operations.
   Missing capabilities disable operations and produce one login report.
   A missing `C_Timer.After` also disables core operations.
+- `/wsf debug_swap` (session-only, off by default) prints swap state at the
+  native use call, at completion (`via=` equipment, event, immediate, fallback,
+  or rejected), at each `EQUIPMENT_SWAP_FINISHED` event, and one second later.
+  Diagnostics run after swap state settles; tests require that a diagnostic
+  defect propagates without stranding a pending swap. Use it to compare WSF and native `/equipset`
+  timing in the client; it never changes swap outcomes.
 - `Equipment.PrepareEquip` rejects combat before any
   `C_EquipmentSet.UseEquipmentSet` call and returns the exact error
   `WSF cannot equip from its UI in combat. Use native /equipset instead.`
   Core reports it once; UI adds no feedback. Out-of-combat weapon-only validation,
   missing-item, item-lock, casting, and completion checks remain.
-- Equip completion uses the native bool/event result plus `isEquipped`.
+- Equip completion: a false `EQUIPMENT_SWAP_FINISHED` result fails at once; a
+  true result succeeds when `isEquipped` is true or `WSF.WeaponsMatchSet`
+  confirms slots 16 to 18 hold the saved items (or are empty where saved
+  empty). Client traces show `EQUIPMENT_SWAP_FINISHED` fires with
+  `result=true` before items move and with `isEquipped=false`; one second later
+  the weapons match and `isEquipped` is true, for weapon and all-empty sets.
+  While a swap is pending, `PLAYER_EQUIPMENT_CHANGED` re-checks this verified
+  state, so success reports as soon as the gear changes. Core also checks at
+  login that every runtime file comes from the same version.
   An accepted pending swap gets one five-second fallback state check, not idle
   polling. Core owns all equip failure/completion feedback.
 - UI guards its deferred login call with timer table/function checks. If the
