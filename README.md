@@ -49,6 +49,9 @@ are outside the project's scope.
 
 Hover over either icon for help text.
 
+At login, WSF prints its title, version, and author, then a short ready hint.
+If the client is unsupported, the second line gives the reason instead.
+
 The custom name field accepts a literal name. Spaces need no quotes there.
 The equip list shows eight sets per page. You can browse it in combat, but WSF
 blocks UI equipping. Combat entry closes the save panel, not the equip list.
@@ -110,6 +113,24 @@ that slot. Export does not validate or change anything, works in combat, and acc
 existing set name, including sets that WSF would reject for equipping.
 Use the same quoting rules as `/wsf save`. To copy the output, enable `/chatlog`
 first; the client writes chat to `Logs/WoWChatLog.txt`.
+
+### Swap diagnostics
+
+`/wsf debug_swap` turns swap diagnostics on or off for the current session
+(`/wsf debug_swap on` and `/wsf debug_swap off` also work). While on, each
+swap prints `debug_swap` lines with the set, its `isEquipped` flag, and the
+item IDs in slots 16 to 18: when WSF asks the client to equip (`use`), when WSF
+decides the result (`finish`, with `via=equipment`, `event`, `immediate`,
+`fallback`, or `rejected`), when the client reports the swap finished (`event`), and one
+second later (`event+1s`). Diagnostics print only after WSF has settled the
+swap, so they cannot leave a swap pending.
+Native `/equipset` swaps print the `event` lines too, for comparison. The
+setting resets on `/reload` and is never saved.
+
+`/wsf debug_swap status` prints whether diagnostics are on, whether WSF is
+available, how many swap-finished events the client has sent since login (with
+the last result and set), and whether a swap is pending. It then prints a sample
+diagnostic line, or the error text if that line cannot be built.
 
 ### Combat macro
 
@@ -256,8 +277,9 @@ Save button icon in `Textures/`.
 
 Source: [jbedworth/WeaponSetsForever](https://github.com/jbedworth/WeaponSetsForever).
 CI tests and builds on `main` pushes, pull requests, and manual runs. Releases
-are tagged GitHub Releases carrying the installable ZIP, optionally mirrored to
-CurseForge; WoWUp can install from the GitHub release asset. Publishing is
+are tagged GitHub Releases carrying the installable `-forever.zip`, also
+uploaded to CurseForge. WowUp 2.24.0 or later can install from the repository
+URL; the release's `release.json` asset tells it the ZIP is for Forever. Publishing is
 disabled unless repository variables explicitly enable it, and both publisher
 jobs run in a `release` environment that must have required reviewers.
 

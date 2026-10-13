@@ -11,6 +11,14 @@ one JSON chat line. Output repeats the command word the user typed. It
 uses the save argument rules but not save-name validation, never mutates state,
 and may run in combat. With no name it probes each set the client marks
 equipped, or prints only current gear when none is.
+`/wsf debug_swap [on|off]` is an author-approved, session-only diagnostic. When
+on, it prints swap state (set, isEquipped, weapon item IDs) at WSF's native use
+call, at completion (with the path that decided it), at each
+EQUIPMENT_SWAP_FINISHED event (including native `/equipset`), and one second
+after each event. It is off by default, never persists, and never changes swap
+outcomes. Run diagnostics only after swap state is settled, so a diagnostic
+defect surfaces as an error but can never strand a pending swap. Prefer adding
+`/wsf debug_*` commands over long `/run` scripts, which exceed the chat limit.
 Do not implement `/wsf set` or speculative secure macro combat support.
 Primary and secondary mean main hand and off hand; include the ranged slot when
 supported by the target client. Off-hand shields and held items are in scope.
@@ -47,6 +55,10 @@ outfit management, frameworks, or speculative features without agreement.
 - The project uses the MIT License. The original brown/gold shield-and-swords
   logo in artwork/ is publishing material. The one author-approved runtime
   derivative is Textures/SaveIcon.tga, built from it by scripts/build_icon.py.
+- The public author name is `Dyre`, the author's in-game name: use it in the TOC
+  `## Author` field (shown in the login banner) and public listings. The MIT
+  copyright notice keeps the legal name, John Bedworth; the release builder
+  requires that exact notice in LICENSE.
 - The TOC uses the built-in INV_Sword_04 icon and Category: Equipment. Preserve
   this user-selected category. Distribution-site categories are separate.
 - Git origin is git@github.com:jbedworth/WeaponSetsForever.git. Always inspect
@@ -145,8 +157,21 @@ outfit management, frameworks, or speculative features without agreement.
   Out of combat, delegate to the native API. Retain weapon-only validation,
   missing-item, item-lock, casting, and completion checks. Respect native restrictions.
   Core owns all equip failure and completion feedback; UI adds none.
-  Completion uses native bool/event results and isEquipped. Permit one five-second
-  fallback check for a pending accepted swap, not idle polling.
+  Completion: a false EQUIPMENT_SWAP_FINISHED result fails at once. A true
+  result succeeds once verified state confirms it: isEquipped is true, or every
+  weapon slot holds the set's saved item (or is empty where the set saved
+  empty). Client `debug_swap` traces show the true event fires before any item
+  moves, with isEquipped false; within a second the weapons match and
+  isEquipped is true, including for an all-empty set. This produced the earlier
+  false failure messages. While a swap is pending, each PLAYER_EQUIPMENT_CHANGED
+  re-checks verified state and confirms the swap; the single five-second
+  fallback check decides otherwise. Neither is idle polling. At login, core
+  also confirms every runtime file is from the same version and reports a
+  mixed install once.
+- WoW APIs can return no values rather than nil (GetInventoryItemID on an empty
+  slot). Store results in a local before passing them to tostring or similar.
+  Test mocks must return no values in those cases. The target client may not
+  show Lua error popups, so diagnostics report errors in chat.
 - Author-approved policy: saving an existing name overwrites that character's
   native set regardless of creator, without extra confirmation. Replace its
   saved configuration with a weapon-only snapshot after validation; saving must
@@ -236,6 +261,10 @@ outfit management, frameworks, or speculative features without agreement.
 - Use authorized tagged GitHub Releases containing installable ZIP assets with a
   top-level `WeaponSetsForever/` folder and correctly named TOC. GitHub source archives
   are not a substitute for an installable release package.
+- Name the ZIP `WeaponSetsForever-<version>-forever.zip` and attach the
+  builder's BigWigs-format `release.json` (flavor `forever`). WowUp 2.24.0
+  identifies Forever assets by that metadata or by the `-forever.zip` suffix;
+  keep both unless WowUp's verified rules change.
 - Package only WeaponSetsForever.toc, Commands.lua, Equipment.lua, Core.lua,
   UI.lua, LICENSE, and Textures/SaveIcon.tga under the top-level
   WeaponSetsForever/ folder. The builder requires the TGA to be uncompressed,

@@ -6,6 +6,9 @@ local SAVE_USAGE = 'Use /wsf save Name or /wsf save "Set Name".'
 local PROBE_COMMANDS = {export = true, debug_probe = true}
 local PROBE_USAGE = 'Use /wsf %s, /wsf %s Name, or /wsf %s "Set Name".'
 
+local SWAP_DEBUG_COMMAND = "debug_swap"
+local SWAP_DEBUG_USAGE = "Use /wsf debug_swap, /wsf debug_swap on, /wsf debug_swap off, or /wsf debug_swap status."
+
 local function ProbeUsage(command)
     return PROBE_USAGE:format(command, command, command)
 end
@@ -101,10 +104,55 @@ local function HandleProbe(command, message)
     end
 end
 
+-- Returns true, false, or nil for toggle; nil plus usage when malformed.
+function WSF.ParseSwapDebugCommand(message)
+    local command, arguments = SplitCommand(message)
+    if command ~= SWAP_DEBUG_COMMAND then
+        return nil, SWAP_DEBUG_USAGE
+    end
+    local setting = arguments:lower()
+    if setting == "" then
+        return true, nil
+    elseif setting == "on" or setting == "off" then
+        return true, setting == "on"
+    elseif setting == "status" then
+        return true, "status"
+    end
+    return nil, SWAP_DEBUG_USAGE
+end
+
+local function HandleSwapDebug(message)
+    local valid, setting = WSF.ParseSwapDebugCommand(message)
+    if not valid then
+        WSF.Report(setting)
+        return
+    end
+    if setting == "status" then
+        WSF.ReportSwapDebugStatus()
+        return
+    end
+    if not WSF.available then
+        WSF.Report("Weapon sets are unavailable. Check the WSF login message.")
+        return
+    end
+    if setting == nil then
+        setting = not WSF.IsSwapDebugEnabled()
+    end
+    if WSF.SetSwapDebug(setting) then
+        WSF.Report("debug_swap on: swap details print to chat until /wsf debug_swap off or /reload.")
+    else
+        WSF.Report("debug_swap off.")
+    end
+end
+
 function WSF.HandleCommand(message)
     local command = SplitCommand(message)
     if PROBE_COMMANDS[command] then
         HandleProbe(command, message)
+        return
+    end
+    if command == SWAP_DEBUG_COMMAND then
+        HandleSwapDebug(message)
         return
     end
     local name, messageText = WSF.ParseSaveCommand(message)

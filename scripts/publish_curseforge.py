@@ -92,7 +92,7 @@ def load_artifact(artifact_dir, tag):
         raise PublishError("Requested tag must match the release version") from None
     if tag != "v" + version or manifest.get("tag") != tag:
         raise PublishError("Manifest tag must match the requested strict vVERSION tag")
-    archive_name = f"WeaponSetsForever-{version}.zip"
+    archive_name = build_release.archive_filename(version)
     if manifest.get("archive_name") != archive_name:
         raise PublishError("Manifest archive name mismatch")
     archive_path = artifact_dir / archive_name
@@ -127,6 +127,13 @@ def load_artifact(artifact_dir, tag):
         raise PublishError("Cannot read UTF-8 release notes") from None
     if not changelog.strip() or "\x00" in changelog:
         raise PublishError("Release notes must be non-empty Markdown text")
+    # WowUp reads this asset to find the Forever ZIP; it must name the verified archive.
+    metadata_path = artifact_dir / build_release.WOWUP_METADATA_NAME
+    supplied = read_json(metadata_path, "WowUp release metadata")
+    # Canonical JSON comparison keeps false distinct from 0.
+    if (json.dumps(supplied, sort_keys=True)
+            != json.dumps(build_release.wowup_metadata(version), sort_keys=True)):
+        raise PublishError("WowUp release.json must name the verified Forever ZIP")
     return manifest, archive_bytes, changelog
 
 

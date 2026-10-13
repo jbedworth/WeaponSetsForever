@@ -105,7 +105,8 @@ jobs:
           if [[ "$PRERELEASE" == true ]]; then
             args+=(--prerelease)
           fi
-          gh "${args[@]}" "dist/$RELEASE_ARCHIVE" "dist/$RELEASE_ARCHIVE.sha256" dist/release-manifest.json
+          # release.json is the WowUp/BigWigs metadata that maps the ZIP to Forever.
+          gh "${args[@]}" "dist/$RELEASE_ARCHIVE" "dist/$RELEASE_ARCHIVE.sha256" dist/release-manifest.json dist/release.json
           python3 scripts/verify_release.py --artifact-dir dist --tag "$RELEASE_TAG" --commit "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false
 

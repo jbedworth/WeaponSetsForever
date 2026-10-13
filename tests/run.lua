@@ -86,12 +86,15 @@ local function fixture(login)
     env.GetBuildInfo = function()
         return state.version, state.build, "date", state.interface
     end
+    -- Like the client, empty slots return no values rather than an explicit nil.
     env.GetInventoryItemID = function(unit, slot)
         equal(unit, "player")
+        if state.gear[slot] == nil then return end
         return state.gear[slot]
     end
     env.GetInventoryItemTexture = function(unit, slot)
         equal(unit, "player")
+        if state.textures[slot] == nil then return end
         return state.textures[slot]
     end
     env.IsInventoryItemLocked = function(slot) return state.locks[slot] or false end
@@ -101,6 +104,15 @@ local function fixture(login)
         return state.casting and "Spell" or nil
     end
     env.IsLoggedIn = function() return false end
+    state.toc = {}
+    for line in io.lines("WeaponSetsForever.toc") do
+        local key, value = line:match("^##%s*([^:]+):%s*(.-)%s*$")
+        if key then state.toc[key] = value end
+    end
+    env.C_AddOns = {GetAddOnMetadata = function(name, field)
+        equal(name, "WeaponSetsForever", "metadata uses the AddOn folder name")
+        return state.toc[field] or ""
+    end}
     env.PaperDollFrame = {EquipmentManagerPane = {
         IsVisible = function() return state.managerVisible end,
         Hide = function() error("AddOn must not hide the native manager") end,
@@ -250,6 +262,17 @@ local function fixture(login)
         if state.useHook then return state.useHook(id) end
         return true
     end
+    -- Login prints a banner, plus a ready hint when available; tests then see
+    -- only the messages that follow it.
+    state.banner = "WSF: Weapon Sets Forever " .. state.toc.Version .. " by Dyre"
+    function state.takeBanner(available)
+        equal(state.messages[1], state.banner, "login banner")
+        table.remove(state.messages, 1)
+        if available then
+            contains(state.messages[1], "WSF:   Ready.")
+            table.remove(state.messages, 1)
+        end
+    end
     local namespace = {}
     function state.load(path)
         local chunk, message = loadfile(path)
@@ -264,7 +287,7 @@ local function fixture(login)
     if login ~= false then
         state.emit("PLAYER_LOGIN")
         equal(namespace.available, true, "fixture capability gate")
-        equal(#state.messages, 0, "supported login is silent")
+        state.takeBanner(true)
     end
     return state
 end
@@ -409,6 +432,7 @@ local function capabilityFailure(state)
     noMutation(state, function()
         state.emit("PLAYER_LOGIN")
         equal(state.wsf.available, false)
+        state.takeBanner(false)
         equal(#state.messages, 1)
         state.emit("PLAYER_LOGIN")
         state.emit("EQUIPMENT_SETS_CHANGED")
@@ -468,6 +492,35 @@ for _, name in ipairs({"MainHandSlot", "SecondaryHandSlot", "RangedSlot"}) do
         capabilityFailure(state)
     end)
 end
+test("login banner shows TOC title, version, and author, then a ready hint", function()
+    local state = fixture(false)
+    state.emit("PLAYER_LOGIN")
+    same(state.messages, {
+        "WSF: Weapon Sets Forever " .. state.toc.Version .. " by Dyre",
+        "WSF:   Ready. Use the Save and Equip icons in the Character panel, or /wsf save Name.",
+    })
+    state.emit("PLAYER_LOGIN")
+    equal(#state.messages, 2, "banner prints once")
+end)
+test("login banner precedes the unavailable reason", function()
+    local state = fixture(false)
+    state.build = "70339"
+    state.emit("PLAYER_LOGIN")
+    equal(#state.messages, 2)
+    equal(state.messages[1], state.banner)
+    contains(state.messages[2], "requires Forever beta 1.60.1 build 70338")
+end)
+test("login banner falls back without the metadata API or fields", function()
+    local state = fixture(false)
+    state.env.C_AddOns = nil
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, true, "metadata never gates operations")
+    equal(state.messages[1], "WSF: Weapon Sets Forever")
+    local blank = fixture(false)
+    blank.toc = {Title = " "}
+    blank.emit("PLAYER_LOGIN")
+    equal(blank.messages[1], "WSF: Weapon Sets Forever")
+end)
 test("capability accepts numeric beta build and hidden ranged", function()
     local state = fixture(false)
     state.build = 70338
@@ -916,11 +969,89 @@ test("equip rejects false event even when native equipped flag is true", functio
     rejected(state.wsf.Equip(7))
     onlyFailure(state, "did not complete")
 end)
-test("equip requires equipped state as well as true completion event", function()
+test("true completion event waits for verified state, then the fallback decides", function()
     local state = equipFixture()
     equal(state.wsf.Equip(7), true)
     state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    equal(#state.messages, 0, "an unverified true result is not yet a failure")
+    state.advance(5)
     onlyFailure(state, "did not complete")
+end)
+test("true event succeeds from weapon slots while isEquipped still lags", function()
+    local state, entry = equipFixture()
+    equal(state.wsf.Equip(7), true)
+    state.apply(7)
+    entry.equipped = false
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    same(state.messages, {"WSF: Equipped weapon set: Weapons"})
+    state.advance(10)
+    equal(#state.messages, 1)
+end)
+test("true event succeeds for an all-empty set the client never marks equipped", function()
+    local state, entry = equipFixture()
+    for _, slot in ipairs({16, 17, 18}) do
+        entry.items[slot], entry.locations[slot] = nil, 0
+    end
+    equal(state.wsf.Equip(7), true)
+    state.gear[16], state.gear[17] = nil, nil
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    same(state.messages, {"WSF: Equipped weapon set: Weapons"})
+end)
+-- Order observed in client traces: true event first, items move afterward.
+test("equipment change confirms a swap after the true event, without the fallback", function()
+    local state, entry = equipFixture()
+    equal(state.wsf.Equip(7), true)
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    equal(#state.messages, 0)
+    state.apply(7, 16)
+    entry.equipped = false
+    state.emit("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    equal(#state.messages, 0, "a partial change is not yet verified")
+    state.apply(7)
+    entry.equipped = false
+    state.emit("PLAYER_EQUIPMENT_CHANGED", 17, true)
+    same(state.messages, {"WSF: Equipped weapon set: Weapons"})
+    state.emit("PLAYER_EQUIPMENT_CHANGED", 18, true)
+    state.advance(10)
+    equal(#state.messages, 1, "no duplicate from later changes or the fallback")
+    state.useHook = function(id) state.apply(id) return true end
+    equal(state.wsf.Equip(7), true, "nothing is left pending")
+end)
+test("equipment changes without a pending swap are ignored", function()
+    local state = equipFixture()
+    noMutation(state, function()
+        state.emit("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    end)
+    equal(#state.messages, 0)
+end)
+test("swap debug reports the equipment-change completion path", function()
+    local state, entry = equipFixture()
+    state.wsf.SetSwapDebug(true)
+    equal(state.wsf.Equip(7), true)
+    state.messages = {}
+    state.apply(7)
+    entry.equipped = false
+    state.emit("PLAYER_EQUIPMENT_CHANGED", 16, true)
+    equal(state.messages[1], "WSF: Equipped weapon set: Weapons")
+    contains(state.messages[2], "via=equipment success=true")
+end)
+test("fallback succeeds from weapon slots when no event arrives", function()
+    local state, entry = equipFixture()
+    equal(state.wsf.Equip(7), true)
+    state.apply(7)
+    entry.equipped = false
+    state.advance(5)
+    same(state.messages, {"WSF: Equipped weapon set: Weapons"})
+end)
+test("partially changed weapons are not verified", function()
+    local state, entry = equipFixture()
+    equal(state.wsf.Equip(7), true)
+    state.apply(7, 16)
+    entry.equipped = false
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    equal(#state.messages, 0)
+    state.advance(5)
+    onlyFailure(state, "Some items may have changed")
 end)
 for _, outcome in ipairs({false, "nil"}) do
     local result = outcome
@@ -986,6 +1117,7 @@ test("deletion during pending equip reports failure safely", function()
     equal(state.wsf.Equip(7), true)
     state.sets[7] = nil
     state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    state.advance(5)
     onlyFailure(state, "did not complete")
 end)
 test("native equip defect propagates and permits later retry", function()
@@ -1153,6 +1285,7 @@ local function uiFixture(options)
     end
     state.emit("PLAYER_LOGIN")
     state.advance(0)
+    state.takeBanner(state.wsf.available)
     if options.missingSlots then return state end
     state.saveDialog = env.WeaponSetsForeverSaveDialog
     state.equipDialog = env.WeaponSetsForeverEquipDialog
@@ -1415,7 +1548,9 @@ for _, combat in ipairs({false, true}) do
     local inCombat = combat
     test("equip row calls core directly " .. (inCombat and "in combat" or "out of combat"), function()
         local state = uiFixture()
-        state.addSet(7, "Weapons")
+        -- Different weapons, so the swap is not already verified when it starts.
+        local entry = state.addSet(7, "Weapons")
+        entry.items[16], entry.items[17] = 9001, 9002
         state.combat = inCombat
         state.managerVisible = true
         state.fire(state.equipButton, "OnClick")
@@ -1931,6 +2066,206 @@ for _, input in ipairs({'debug_probe"Name"', "debug_probeName", "exportName", "e
 end
 test("save parser does not accept the probe command", function()
     rejected(fixture().wsf.ParseSaveCommand("debug_probe Daggers"))
+end)
+
+for _, case in ipairs({{"debug_swap", nil}, {" DEBUG_SWAP ", nil},
+    {"debug_swap on", true}, {"debug_swap OFF", false}}) do
+    local input, expected = case[1], case[2]
+    test("swap debug parser accepts " .. input, function()
+        local valid, setting = fixture().wsf.ParseSwapDebugCommand(input)
+        equal(valid, true)
+        equal(setting, expected)
+    end)
+end
+for _, input in ipairs({"debug_swap maybe", "debug_swap on off", 'debug_swap "on"'}) do
+    local message = input
+    test("swap debug rejects " .. message .. " with usage", function()
+        local state = fixture()
+        noMutation(state, function() state.wsf.HandleCommand(message) end)
+        onlyFailure(state, "Use /wsf debug_swap")
+        equal(state.wsf.IsSwapDebugEnabled(), false)
+    end)
+end
+
+local SWAP_STATE = "set=7 name=Weapons isEquipped=%s 16=%s 17=%s 18=nil"
+test("swap debug is off by default and silent for swaps", function()
+    local state, entry = equipFixture()
+    equal(state.wsf.IsSwapDebugEnabled(), false)
+    state.useHook = function(id)
+        state.apply(id)
+        state.emit("EQUIPMENT_SWAP_FINISHED", true, id)
+        return true
+    end
+    equal(state.wsf.Equip(entry.id), true)
+    same(state.messages, {"WSF: Equipped weapon set: Weapons"})
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    state.advance(1)
+    equal(#state.messages, 1)
+end)
+
+test("swap debug reports native swaps at the event and one second later", function()
+    local state = equipFixture()
+    state.wsf.HandleCommand("debug_swap on")
+    contains(state.messages[1], "WSF: debug_swap on:")
+    state.messages = {}
+    noMutation(state, function()
+        state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+        state.advance(1)
+    end)
+    same(state.messages, {
+        "WSF: debug_swap event " .. SWAP_STATE:format("false", 1016, 1017) .. " result=true",
+        "WSF: debug_swap event+1s " .. SWAP_STATE:format("false", 1016, 1017),
+    })
+end)
+
+test("swap debug traces a WSF swap without changing its outcome", function()
+    local state, entry = equipFixture()
+    state.wsf.SetSwapDebug(true)
+    state.useHook = function() return true end
+    equal(state.wsf.Equip(entry.id), true)
+    state.apply(entry.id)
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, entry.id)
+    state.advance(1)
+    same(state.messages, {
+        "WSF: debug_swap use " .. SWAP_STATE:format("false", 1016, 1017) .. " accepted=true",
+        "WSF: Equipped weapon set: Weapons",
+        "WSF: debug_swap finish " .. SWAP_STATE:format("true", 9001, 9002)
+            .. " via=event success=true",
+        "WSF: debug_swap event " .. SWAP_STATE:format("true", 9001, 9002) .. " result=true",
+        "WSF: debug_swap event+1s " .. SWAP_STATE:format("true", 9001, 9002),
+    })
+end)
+
+test("swap debug reports the fallback check", function()
+    local state, entry = equipFixture()
+    state.wsf.SetSwapDebug(true)
+    state.useHook = function() return true end
+    equal(state.wsf.Equip(entry.id), true)
+    state.messages = {}
+    state.advance(5)
+    contains(state.messages[1], "did not complete")
+    contains(state.messages[2], "WSF: debug_swap finish set=7")
+    contains(state.messages[2], "via=fallback success=false")
+end)
+
+-- A diagnostic defect must surface as an error yet never strand a pending swap.
+-- The observed client failure: diagnostics read a table that an older
+-- Equipment.lua does not define. Only diagnostics depend on it.
+local function breakDiagnostics(state)
+    state.wsf.WEAPON_SLOT_IDS = nil
+end
+test("diagnostic defect at the use stage clears pending and propagates", function()
+    local state, entry = equipFixture()
+    state.wsf.SetSwapDebug(true)
+    state.useHook = function() return true end
+    breakDiagnostics(state)
+    raises(function() state.wsf.Equip(entry.id) end, "ipairs")
+    state.wsf.SetSwapDebug(false)
+    state.messages = {}
+    equal(state.wsf.Equip(entry.id), true, "a later swap is not blocked")
+    equal(#state.messages, 0)
+end)
+test("diagnostic defect at the event stage still finishes the swap", function()
+    local state, entry = equipFixture()
+    state.useHook = function() return true end
+    equal(state.wsf.Equip(entry.id), true)
+    state.wsf.SetSwapDebug(true)
+    breakDiagnostics(state)
+    state.apply(entry.id)
+    raises(function() state.emit("EQUIPMENT_SWAP_FINISHED", true, entry.id) end, "ipairs")
+    equal(state.messages[1], "WSF: Equipped weapon set: Weapons")
+    state.wsf.SetSwapDebug(false)
+    state.messages = {}
+    equal(state.wsf.Equip(entry.id), true, "no stranded pending swap")
+end)
+test("diagnostic defect at the fallback stage still finishes the swap", function()
+    local state, entry = equipFixture()
+    state.useHook = function() return true end
+    equal(state.wsf.Equip(entry.id), true)
+    state.wsf.SetSwapDebug(true)
+    breakDiagnostics(state)
+    raises(function() state.advance(5) end, "ipairs")
+    contains(state.messages[1], "did not complete")
+    state.wsf.SetSwapDebug(false)
+    state.messages = {}
+    equal(state.wsf.Equip(entry.id), true, "no stranded pending swap")
+end)
+for _, name in ipairs({"WeaponsMatchSet", "ProbeEquipped", "ParseSwapDebugCommand"}) do
+    local missing = name
+    test("login reports a mixed install missing " .. missing, function()
+        local state = fixture(false)
+        state.wsf[missing] = nil
+        state.emit("PLAYER_LOGIN")
+        equal(state.wsf.available, false)
+        state.takeBanner(false)
+        onlyFailure(state, "files are from different versions (missing " .. missing .. ")")
+    end)
+end
+test("login reports a mixed install missing the weapon slot table", function()
+    local state = fixture(false)
+    state.wsf.WEAPON_SLOT_IDS = nil
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, false)
+    state.takeBanner(false)
+    onlyFailure(state, "missing WEAPON_SLOT_IDS")
+end)
+
+test("swap debug status counts client swap events even while off", function()
+    local state = equipFixture()
+    noMutation(state, function()
+        state.wsf.HandleCommand("debug_swap status")
+        state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+        state.emit("EQUIPMENT_SWAP_FINISHED", false, 7)
+        state.wsf.HandleCommand("DEBUG_SWAP STATUS")
+    end)
+    same(state.messages, {
+        "WSF: debug_swap status enabled=false available=true events=0 lastResult=nil lastSet=nil pending=false",
+        "WSF: debug_swap test set=nil name=nil isEquipped=nil 16=1016 17=1017 18=nil",
+        "WSF: debug_swap status enabled=false available=true events=2 lastResult=false lastSet=7 pending=false",
+        "WSF: debug_swap test " .. SWAP_STATE:format("false", 1016, 1017),
+    })
+end)
+
+test("swap debug status reports formatting errors as chat text", function()
+    local state = equipFixture()
+    state.wsf.WEAPON_SLOT_IDS = nil
+    state.wsf.HandleCommand("debug_swap status")
+    equal(#state.messages, 2)
+    contains(state.messages[2], "WSF: debug_swap test failed: ")
+    contains(state.messages[2], "ipairs")
+end)
+
+test("swap debug status works while unavailable without reading APIs", function()
+    local state = fixture(false)
+    state.env.C_EquipmentSet = nil
+    state.wsf.HandleCommand("debug_swap status")
+    same(state.messages, {
+        "WSF: debug_swap status enabled=false available=false events=0 lastResult=nil lastSet=nil pending=false",
+    })
+end)
+
+test("swap debug toggles without an argument and turns off", function()
+    local state = fixture()
+    state.wsf.HandleCommand("debug_swap")
+    equal(state.wsf.IsSwapDebugEnabled(), true)
+    state.wsf.HandleCommand("debug_swap")
+    equal(state.wsf.IsSwapDebugEnabled(), false)
+    equal(state.messages[2], "WSF: debug_swap off.")
+    state.messages = {}
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    equal(#state.messages, 0)
+end)
+
+test("swap debug requires availability and never reads missing APIs", function()
+    local state = fixture(false)
+    noMutation(state, function() state.wsf.HandleCommand("debug_swap on") end)
+    onlyFailure(state, "unavailable")
+    equal(state.wsf.IsSwapDebugEnabled(), false)
+    state.wsf.SetSwapDebug(true)
+    state.env.C_EquipmentSet = nil
+    state.messages = {}
+    state.emit("EQUIPMENT_SWAP_FINISHED", true, 7)
+    equal(#state.messages, 0)
 end)
 
 local function slotJSON(values)

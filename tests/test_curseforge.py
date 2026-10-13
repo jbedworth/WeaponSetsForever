@@ -94,6 +94,38 @@ class CurseForgeTests(unittest.TestCase):
         self.opener_factory.assert_not_called()
         self.opener.open.assert_not_called()
 
+    def test_wowup_metadata_names_the_forever_archive(self):
+        self.assertEqual(self.archive.name, "WeaponSetsForever-0.1.0-beta-forever.zip")
+        metadata = json.loads((self.dist / "release.json").read_text(encoding="utf-8"))
+        self.assertEqual(metadata, {"releases": [{
+            "name": "WeaponSetsForever", "version": "0.1.0-beta",
+            "filename": "WeaponSetsForever-0.1.0-beta-forever.zip", "nolib": False,
+            "metadata": [{"flavor": "forever", "interface": 16001}],
+        }]})
+
+    def test_wowup_metadata_must_match_before_upload(self):
+        path = self.dist / "release.json"
+        original = json.loads(path.read_text(encoding="utf-8"))
+        release = original["releases"][0]
+        variants = (
+            None, "[]", {"releases": []},
+            {"releases": [dict(release, filename="WeaponSetsForever-0.1.0-beta.zip")]},
+            {"releases": [dict(release, nolib=0)]},
+            {"releases": [dict(release, metadata=[{"flavor": "classic", "interface": 16001}])]},
+            {"releases": [dict(release, version="0.2.0-beta")]},
+        )
+        for value in variants:
+            with self.subTest(value=value):
+                if value is None:
+                    path.unlink()
+                else:
+                    path.write_text(value if isinstance(value, str) else json.dumps(value),
+                                    encoding="utf-8")
+                with self.assertRaises(publisher.PublishError):
+                    publisher.load_artifact(artifact_dir=self.dist, tag=self.tag)
+                path.write_text(json.dumps(original), encoding="utf-8")
+        self.assert_no_network()
+
     def test_upload_exact_metadata_changelog_bytes_and_receipt(self):
         notes = "# Beta notes\n\nUnicode: café. Native `/equipset` guidance.\n"
         (self.dist / "release-notes.md").write_bytes(notes.encode("utf-8"))
