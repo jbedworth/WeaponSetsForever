@@ -170,9 +170,11 @@ provided by these rechecks.
    this repository/plan and that a job actually waits for approval before any
    publishing step. Merely declaring `environment: release` does **not** create
    required reviewers. If enforced approvals are unavailable, leave flags off
-   until an agreed effective gate exists. Use a controlled no-upload gate check
-   before enabling the publisher; ordinary build-only runs do not exercise its
-   environment gate.
+   until an agreed effective gate exists. Before enabling the publisher, run
+   the no-upload `gate-check.yml` workflow from `main`
+   (`gh workflow run gate-check.yml --ref main`) and confirm its job waits for
+   approval; ordinary build-only runs do not exercise the environment gate.
+   It needs `main` in the environment's deployment branch rules.
 3. **Protect tags and source.** In **Settings → Rules → Rulesets**, create an
    active tag ruleset targeting `v*`: restrict creation to authorized maintainers
    and restrict updates and deletions. Minimize bypass permissions; never move
@@ -180,7 +182,12 @@ provided by these rechecks.
    review controls. Confirm rules actually apply before publication; ancestry
    and repeated API checks cannot eliminate a tag-movement race.
 4. **Finish service setup.** Create/verify the CurseForge project and exact
-   Forever `1.60.1` game-version ID/type `88568`. In repository Actions variables,
+   Forever `1.60.1` game-version ID/type `88568`. Project form text is in
+   [CURSEFORGE_LISTING.md](CURSEFORGE_LISTING.md). Create the upload token at
+   https://authors.curseforge.com/#/settings/api-tokens, then find the version
+   ID locally with `python3 scripts/curseforge_versions.py`; it reads the token
+   from `CF_API_TOKEN` or a hidden prompt, sends one read-only GET, and marks
+   the `1.60.1` entry. In repository Actions variables,
    set `CURSEFORGE_PROJECT_ID` and `CURSEFORGE_GAME_VERSION_ID` to the verified
    positive decimal IDs, not example values. In **Settings → Environments →
    release → Environment secrets**, add author upload token `CF_API_TOKEN`.
@@ -209,8 +216,9 @@ Do not use a blind workflow rerun as a recovery procedure. See
 
 ### Client and package
 
-- [ ] Confirm the current client still reports `1.60.1`, build `70338`, Interface
-      `16001`, and Lua `5.1`.
+- [ ] Record the client version, build, and Interface you tested on. If the
+      Interface changed, update the TOC; if the version changed, find the new
+      CurseForge game-version ID with `scripts/curseforge_versions.py`.
 - [ ] Test the panels, Save/Enter/Cancel/Escape, and layout at the supported UI
       scales.
 - [ ] Verify UI combat rejection gives clear `/equipset` guidance, and that the

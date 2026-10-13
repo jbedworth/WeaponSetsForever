@@ -16,10 +16,12 @@ storage, and they work with the game's own `/equipset` command and macros.
 
 ## Compatibility
 
-WSF targets Forever beta `1.60.1`, build `70338`, Interface `16001`, Lua `5.1`.
-The runtime checks for this exact build, the required APIs, and the expected
-weapon slot identities, and disables itself with one message otherwise. Launch,
-Retail, and other Classic clients are not supported.
+WSF is tested on the Forever beta, `1.60.1` build `70338`, Interface `16001`,
+Lua `5.1`. It does not check the client version or build, because beta builds
+change several times a week. Instead it checks at login for the native
+equipment-set APIs, constants, and weapon slot identities it needs, and
+disables itself with one message if any are missing. Retail and other Classic
+clients are not supported.
 
 ## Features
 
@@ -188,8 +190,9 @@ WeaponSetsForever/
 ```
 
 The TOC loads Commands, Equipment, Core, then UI. It declares no SavedVariables.
-Its in-game AddOn category is **Equipment**, and it uses Blizzard's built-in
-`INV_Sword_04` icon. This category is separate from distribution-site categories.
+Its in-game AddOn category is **Bags & Inventory**, the same text as its
+CurseForge category, and it uses Blizzard's built-in `INV_Sword_04` icon. The
+AddOn list groups AddOns by exact category text.
 
 Do not install `.tools/`, tests, artwork, or agent guidance as runtime files.
 Include `LICENSE` when distributing copies. Restart the client after installing
@@ -204,9 +207,10 @@ the AddOn or changing TOC metadata.
 | `Core.lua` | Slash registration, login availability, equip state and completion feedback. |
 | `UI.lua` | Character-panel buttons and custom save/equip panels. |
 | `tests/run.lua` | Isolated Lua 5.1 tests with WoW API mocks. |
-| `scripts/` | Standard-library Python release builder, provenance verifier, and CurseForge uploader; no runtime dependencies. |
+| `scripts/` | Standard-library Python release builder, provenance verifier, CurseForge uploader and read-only version lookup, and icon builder; no runtime dependencies. |
 | `tests/test_*.py` | Release-builder, CurseForge, and provenance unit tests. |
 | `.github/workflows/release.yml` | Read-only CI builds and opt-in, protected-environment publishers. |
+| `.github/workflows/gate-check.yml` | Manual, permission-free check that `release` environment jobs wait for approval. |
 | `TESTING.md` | Verification method, pinned source evidence, and in-client checklist. |
 | `docs/RELEASE_PLAN.md` | Packaging, CI, and publication process. |
 | `AGENTS.md` | Maintenance rules and agreed project constraints. |

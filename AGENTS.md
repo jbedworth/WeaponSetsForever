@@ -59,8 +59,9 @@ outfit management, frameworks, or speculative features without agreement.
   `## Author` field (shown in the login banner) and public listings. The MIT
   copyright notice keeps the legal name, John Bedworth; the release builder
   requires that exact notice in LICENSE.
-- The TOC uses the built-in INV_Sword_04 icon and Category: Equipment. Preserve
-  this user-selected category. Distribution-site categories are separate.
+- The TOC uses the built-in INV_Sword_04 icon and `## Category: Bags & Inventory`,
+  the author-selected text matching the CurseForge category. The pinned
+  AddonList.lua groups AddOns by exact category string; keep the two identical.
 - Git origin is git@github.com:jbedworth/WeaponSetsForever.git. Always inspect
   current Git state before acting, and preserve user work.
 - Text is LF under .gitattributes (* text=auto eol=lf; PNG/JPG/GIF/WebP/ZIP
@@ -79,8 +80,10 @@ outfit management, frameworks, or speculative features without agreement.
 - Pin source review to Gethe/wow-ui-source commit
   `943764493e6b16d63ded3ab304150d1f05e58b57`, version `1.60.1.70338`.
   Record source findings and unresolved behavior in TESTING.md.
-- Gate the runtime to exact version 1.60.1, build 70338, Interface 16001,
-  required APIs/constants, and verified slot identities: main 16, off 17, ranged 18.
+- Do not gate the runtime on client version, build, or Interface: the author
+  dropped that check because Forever beta builds ship several times a week.
+  Gate only on required APIs/constants and verified slot identities: main 16,
+  off 17, ranged 18.
   Require all three slots. Do not drop hidden empty ranged based on
   IsRangedSlotShown or IsInventorySlotEnabled. Native result tables omit
   ignored locations. Treat an omitted weapon location as empty only with an
@@ -281,9 +284,11 @@ outfit management, frameworks, or speculative features without agreement.
   be an ancestor of origin/main. Checkout/upload/download Actions are full-SHA
   pinned and verified against the GitHub API; review any future pin changes.
 - Publishing requires repository variables ENABLE_GITHUB_RELEASES='true' and,
-  for CurseForge, ENABLE_CURSEFORGE_UPLOADS='true'. Both jobs use environment
-  release. The author must configure required reviewers and verify the gate works
-  before enabling either flag; an environment declaration alone is not gating.
+  for CurseForge, ENABLE_CURSEFORGE_UPLOADS='true'. Both jobs use the
+  author-created environment `release` (jbedworth as required reviewer). The
+  workflow's environment name must match it exactly: GitHub silently creates an
+  unprotected environment for any unknown name. The author must verify the gate
+  works before enabling either flag; an environment declaration alone is not gating.
   CurseForge also requires the GitHub publisher to succeed.
 - GitHub publishing uses contents: write, built-in GITHUB_TOKEN, and hosted gh;
   local gh authentication is not needed for CI. CurseForge requires positive

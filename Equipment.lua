@@ -25,11 +25,10 @@ local weapons = {}
 local api
 local saving = false
 
+-- Detects the features WSF needs rather than gating on client version or build:
+-- Forever beta builds change several times a week. The TOC Interface line
+-- remains the client's own out-of-date marker.
 function WSF.CheckCapabilities()
-    local version, build, _, interface = GetBuildInfo()
-    if version ~= "1.60.1" or tostring(build) ~= "70338" or interface ~= 16001 then
-        return false, "This test version requires Forever beta 1.60.1 build 70338."
-    end
     if type(C_EquipmentSet) ~= "table" then
         return false, "Native equipment sets are unavailable on this client."
     end

@@ -454,10 +454,6 @@ end
 local invalidCapabilities = {
     {"native table", function(s) s.env.C_EquipmentSet = false end},
     {"character support", function(s) s.capable = false end},
-    {"version", function(s) s.version = "1.60.2" end},
-    {"build", function(s) s.build = "70339" end},
-    {"interface", function(s) s.interface = 16002 end},
-    {"string interface", function(s) s.interface = "16001" end},
     {"paper doll table", function(s) s.env.C_PaperDollInfo = false end},
     {"slot API", function(s) s.env.C_PaperDollInfo.GetInventorySlotInfo = nil end},
     {"inventory ID", function(s) s.env.GetInventoryItemID = false end},
@@ -504,11 +500,11 @@ test("login banner shows TOC title, version, and author, then a ready hint", fun
 end)
 test("login banner precedes the unavailable reason", function()
     local state = fixture(false)
-    state.build = "70339"
+    state.capable = false
     state.emit("PLAYER_LOGIN")
     equal(#state.messages, 2)
     equal(state.messages[1], state.banner)
-    contains(state.messages[2], "requires Forever beta 1.60.1 build 70338")
+    contains(state.messages[2], "unavailable for this character")
 end)
 test("login banner falls back without the metadata API or fields", function()
     local state = fixture(false)
@@ -521,6 +517,25 @@ test("login banner falls back without the metadata API or fields", function()
     blank.emit("PLAYER_LOGIN")
     equal(blank.messages[1], "WSF: Weapon Sets Forever")
 end)
+-- Beta builds change several times a week; only missing features disable WSF.
+local otherClients = {
+    {"next beta build", function(s) s.build = "70412" end},
+    {"numeric build", function(s) s.build = 70338 end},
+    {"patch version", function(s) s.version = "1.60.2" end},
+    {"interface", function(s) s.interface = 16002 end},
+    {"string interface", function(s) s.interface = "16001" end},
+}
+for _, case in ipairs(otherClients) do
+    local name, change = case[1], case[2]
+    test("capability accepts other client versions: " .. name, function()
+        local state = fixture(false)
+        change(state)
+        state.emit("PLAYER_LOGIN")
+        equal(state.wsf.available, true)
+        state.takeBanner(true)
+        equal(#state.messages, 0)
+    end)
+end
 test("capability accepts numeric beta build and hidden ranged", function()
     local state = fixture(false)
     state.build = 70338
