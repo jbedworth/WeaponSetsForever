@@ -9,7 +9,7 @@ background. The design has no font or external-image dependencies.
 
 Use these files for project pages and distribution branding. Keep this directory
 out of the runtime release ZIP unless the AddOn later explicitly loads an asset.
-The existing TOC still uses Blizzard's built-in weapon icon.
+The TOC uses Blizzard's built-in weapon icon.
 
 This artwork is covered by the repository's MIT License. Copyright (c) 2026
 John Bedworth. Include the applicable license notice with distributed copies.

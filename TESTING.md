@@ -1,34 +1,34 @@
 # Verification and test plan
 
-## Status
+This document describes how Weapon Sets Forever is verified: the runtime
+contract under test, the pinned client-source evidence behind design decisions,
+the automated test method, and the in-client checklist.
 
-Target: Forever beta `1.60.1.70338`, Interface `16001`, Lua `5.1`.
-The owner confirmed the build/runtime and the presence of native set APIs.
-Core gates operations to exact version `1.60.1`, build `70338`, and Interface `16001`.
-Other builds remain unsupported until reviewed and tested.
-Initial client testing found a save-verification error. The owner supplied
-native result tables for `Shield-Set` (ID 2), recorded below. After the fix,
-on 2026-10-12 the owner reported that UI controls and macros/slash commands can
-save and equip a set. This is a successful basic client smoke test, not full
-compatibility verification. Unchanged non-weapon gear/ammo, empty-slot restoration,
-weapon transitions, failure cases, restored combat guard/taint, persistence,
-and character isolation still require separate checks. Repeated owner-reported
-same-set combat comparisons confirm a beta limitation: custom WSF UI swaps fail
-with generic WSF feedback referring to bag space, while the native conditional
-macro works. This establishes different observed results, not the internal
-permission root cause. WSF UI equip is now out of combat only. Saves remain
-blocked in combat and with the Equipment Manager pane visible. No macro
-workarounds, secure-macro support, queues, or frameworks are in scope.
+## Verification approach
 
-The experimental runtime now includes `Commands.lua`, `Equipment.lua`,
-`Core.lua`, `UI.lua`, and `WeaponSetsForever.toc`. Focused tests exist at
-`tests/run.lua`. The latest reported validation on 2026-10-12 passed 270/270 mock
-tests under Lua 5.1.5. Syntax checks passed for Commands.lua, Equipment.lua,
-Core.lua, UI.lua, and tests/run.lua. Earlier runs are historical records below.
-Automated results do not establish in-client behavior, panel appearance,
-protected-action permissions, or taint.
+WSF is verified in three layers, and each proves different things:
 
-### Current runtime contract
+1. **Pinned source review.** Client behavior is read from Blizzard's FrameXML
+   and generated API documentation at a pinned commit matching the target build.
+   Source establishes declared constants, templates, and code paths, not
+   operational behavior.
+2. **Automated mock tests.** `tests/run.lua` exercises parsing, validation,
+   equipment-operation logic, and panel behavior against minimal WoW API mocks
+   under Lua 5.1. Python unit tests cover the release helpers. Mocks cannot
+   establish protected-action permissions, taint, visual layout, or actual
+   equipment changes.
+3. **In-client checks.** The checklist below covers everything mocks cannot.
+   Client observations that contradict a mock assumption take precedence; fix
+   the mock and add a regression test that encodes the observed behavior.
+
+Keep these layers distinct when reporting results. Do not present a source
+finding or a passing mock run as client verification.
+
+Target: Forever beta `1.60.1.70338`, Interface `16001`, Lua `5.1`. Core gates
+operations to exactly this version, build, and Interface. Other builds remain
+unsupported until reviewed and tested.
+
+## Runtime contract
 
 - `Commands.lua` validates exactly one save name and counts UTF-8 start bytes
   against a 16-letter limit. Custom save-panel and slash saves use the shared validator.
@@ -36,8 +36,7 @@ protected-action permissions, or taint.
   and all three slot identities (main 16, off 17, ranged 18). It does not discard
   a slot based on ranged visibility or `IsInventorySlotEnabled`.
 - Save-ignore operations cover equipped slots `1..19` except weapons `16/17/18`.
-  The code does not individually operate on ammo slot `0`. Ammo is outside scope;
-  native ammo behavior and unchanged ammo remain in-client checks.
+  The code does not individually operate on ammo slot `0`; ammo is outside scope.
 - Saves verify saved ignore flags, item IDs, and locations. Omitted ignored
   locations are accepted. An omitted weapon location is treated as empty only
   with an explicit false ignore flag and no saved item ID.
@@ -56,9 +55,21 @@ protected-action permissions, or taint.
   polling. Core owns all equip failure/completion feedback.
 - UI guards its deferred login call with timer table/function checks. If the
   timer is absent, it updates directly without a timer exception; core remains
-  responsible for disabling operations. Both login-handler orders need tests.
+  responsible for disabling operations. Both login-handler orders are tested.
+- `/wsf export Name` (alias `/wsf debug_probe`; `WSF.ProbeSet`) prints the raw native tables for
+  slots `1..19`, the `GetEquipmentSetInfo` returns named in documented order,
+  decoded locations, the client build, and current gear as JSON. It does not
+  validate or mutate anything. Absent slot entries print as `null`, and `|` and
+  control characters are escaped so the chat line cannot form UI escape sequences.
+  Location decoding uses the pinned `ITEM_INVENTORY_LOCATION_PLAYER` (`0x100000`),
+  `_BAGS` (`0x200000`), and `_BANK` (`0x400000`) flags, with the bag index shifted
+  by `ITEM_INVENTORY_BAG_BIT_OFFSET` (8) and the slot in the low byte. Any other
+  set bits are reported as `otherBits` rather than interpreted.
+  With no name (`WSF.ProbeEquipped`), it probes every set whose
+  `GetEquipmentSetInfo` `isEquipped` return is exactly `true`, or reports only
+  the client and current gear when none is.
 - The TOC uses Interface 16001, loads Commands, Equipment, Core, then UI, and
-  declares no SavedVariables. Equipping by command remains native `/equipset`;
+  declares no SavedVariables. Equipping by command is native `/equipset`;
   there is no `/wsf set` implementation.
 
 ## Pinned source evidence
@@ -95,9 +106,8 @@ legends in the client.
 
 ### Custom WSF panels
 
-WSF no longer uses StaticPopup dialogs. Earlier StaticPopup callback findings
-are not the current WSF contract. Blizzard's native dialogs remain untouched.
-The following describes WSF source and policy, not visual client verification:
+WSF does not use StaticPopup dialogs; Blizzard's native dialogs remain untouched.
+The following is WSF source and policy, not visual client verification:
 
 - Both custom panels have dark-brown backgrounds, gold borders and headings,
   warm text, and subtle separators. Each heading is exactly `Weapon Sets Forever`.
@@ -112,12 +122,9 @@ The following describes WSF source and policy, not visual client verification:
 - Parent hiding closes both panels. Combat entry hides only the save panel.
   The equip list stays open and can open and be browsed in combat. Selecting a
   row is blocked by core once, with clear feedback and no native equip API call.
-  Save combat/manager guards still apply at open and acceptance, unchanged.
+  Save combat/manager guards apply at open and acceptance.
 - The equip tooltip says UI equip is out of combat only; use native `/equipset`
   or player macros in combat.
-
-New in-client checks are required for colors, exact headings, layout, focus,
-Escape, combat UI, protected actions, and taint. Mocks cannot prove these results.
 
 ### Save-ignore state and native equipping
 
@@ -129,25 +136,24 @@ ignore/unignore functions. Manager hide clears shared flags.
 [`EquipmentManagerDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_APIDocumentationGenerated/EquipmentManagerDocumentation.lua)
 marks `EQUIPMENT_SETS_CHANGED` synchronous. Thus a save can trigger native UI
 flag changes before it returns. UI guards both prompt open and acceptance when
-`EquipmentManagerPane:IsVisible()`. Core must enforce this before mutation and
-restore shared flags on every outcome. UI does not hide the native pane.
+`EquipmentManagerPane:IsVisible()`. Core enforces this before mutation and
+restores shared flags on every outcome. UI does not hide the native pane.
 
 [`SlashCommands.lua`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_ChatFrameBase/Shared/SlashCommands.lua)
 registers `EQUIP_SET` as a secure slash command. It applies
 `SecureCmdOptionParse`, looks up the returned full name, then calls
 `C_EquipmentSet.UseEquipmentSet(id)`. This does not give a custom UI handler the
 same permissions. WSF's custom panels use ordinary UI callbacks, not this secure
-native slash path. The owner's repeated same-set comparison confirms native
-macro success and WSF UI failure in combat on this beta. Source shows different
-paths, but does not establish the internal permission root cause of that failure.
-Block WSF equip in combat before the native call; retain out-of-combat safety
-checks. Add no macro workaround, secure-macro support, queue, or framework.
-Core owns all equip result and completion messages.
+native slash path. In client, the native macro swaps in combat while the WSF UI
+path does not; source shows the different paths but does not establish the
+internal permission root cause. WSF therefore blocks UI equips in combat before
+the native call and retains out-of-combat safety checks. No macro workaround,
+secure-macro support, queue, or framework is in scope.
 
 ### Equipment constants and native name field
 
 [`Blizzard_FrameXMLBase/Constants.lua`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_FrameXMLBase/Constants.lua#L134-L185)
-declares these values in the exact pinned source:
+declares these values in the pinned source:
 
 | Constant | Value |
 | --- | --- |
@@ -161,12 +167,12 @@ declares these values in the exact pinned source:
 | `EQUIPMENT_SET_IGNORED_SLOT` | `1` |
 | `EQUIPMENT_SET_ITEM_MISSING` | `-1` |
 
-These declarations establish source constants, not verified operational
-behavior. They do not prove that every native result table uses the same
-sentinels. Core compares saved ignore flags and item IDs with locations.
-It accepts explicit empty `0`, or an omitted weapon location only with an explicit false ignore flag
-and no item ID, as described in the sparse beta results below. Nil alone does not
-establish an empty slot. Verify native equip behavior separately.
+These declarations establish source constants, not operational behavior, and do
+not prove that every native result table uses the same sentinels. Core compares
+saved ignore flags and item IDs with locations. It accepts explicit empty `0`,
+or an omitted weapon location only with an explicit false ignore flag and no
+item ID (see the sparse result format below). Nil alone does not establish an
+empty slot.
 
 The native name field has a **16-letter UI limit**.
 [`PaperDollFrame.xml`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_UIPanels_Game/Camelot/PaperDollFrame.xml#L943-L949)
@@ -174,19 +180,48 @@ makes `GearManagerPopupFrame` inherit `IconSelectorPopupFrameTemplate`.
 [`SharedUIPanelTemplates.xml`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml#L1845-L1846)
 defines its `IconSelectorEditBox` with `letters="16"`.
 `GearManagerPopupFrameMixin:OkayButton_OnClick` reads that field and passes the
-name to native set creation or modification. No name-length override was found
-in the reviewed Camelot popup code or shared template Lua.
+name to native set creation or modification. No name-length override exists in
+the reviewed Camelot popup code or shared template Lua.
 
-This verifies the native UI field limit, not an independently documented
-`C_EquipmentSet.CreateEquipmentSet` API/server limit. Do not assume that Lua's
-byte-counting `#name` equals the edit box's letter count for UTF-8 names.
-Test 16- and 17-letter names and non-ASCII names through the native manager,
-WSF save panel, and slash command. Check rejection versus truncation and overwrite
-safety. WSF's shared `ValidateName` now enforces the 16-letter limit by counting
-UTF-8 start bytes in Lua 5.1. The save panel passes the full input to that validator;
-it does not silently truncate it. This does not prove native Unicode behavior.
+This is the native UI field limit, not an independently documented
+`C_EquipmentSet.CreateEquipmentSet` API/server limit. Lua's byte-counting
+`#name` does not equal the edit box's letter count for UTF-8 names, so WSF's
+shared `ValidateName` counts UTF-8 start bytes. The save panel passes the full
+input to that validator; it never silently truncates it. Native Unicode
+behavior is an in-client check.
 
-### Ranged support and unresolved core questions
+### Sparse native result tables
+
+Native set queries return sparse tables that omit ignored locations. For
+example, a shield set saved with only slots 16, 17, and 18 un-ignored returns:
+
+- `GetIgnoredSlots`: true for slots 1..15 and 19; false for 16, 17, and 18.
+- `GetItemLocations`: only `[16] = 1048592`, `[17] = 1048593`.
+- `GetItemIDs`: only `[16] = 2011`, `[17] = 6320`.
+
+Verification therefore accepts omitted ignored locations and normalizes an
+omitted weapon location to empty only when the ignore flag is explicitly false
+and the item ID is absent. It does not mutate native result tables. Unknown slot
+data, absent occupied locations, and explicit missing-item sentinels remain
+failures. The mock suite includes this shape as a regression fixture. Reading a
+saved table does not prove that native equipping restores an empty slot.
+
+### Packed item locations and set info
+
+[`Blizzard_FrameXMLBase/Constants.lua`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_FrameXMLBase/Constants.lua#L129-L132)
+declares `ITEM_INVENTORY_LOCATION_PLAYER = 0x00100000`,
+`ITEM_INVENTORY_LOCATION_BAGS = 0x00200000`,
+`ITEM_INVENTORY_LOCATION_BANK = 0x00400000`, and
+`ITEM_INVENTORY_BAG_BIT_OFFSET = 8`. Client probes match this packing: an
+equipped main hand is `0x100010`, and a saved item in bag 3, slot 3 is `0x300303`.
+
+[`EquipmentManagerDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_APIDocumentationGenerated/EquipmentManagerDocumentation.lua)
+documents `GetEquipmentSetInfo` returns as `name`, `iconFileID`, `setID`,
+`isEquipped`, `numItems`, `numEquipped`, `numInInventory`, `numLost`, and
+`numIgnored`. On the target client, `numIgnored` can be `0` for a set with
+ignored slots, so its meaning is unverified; WSF does not use it.
+
+### Ranged support
 
 [`PaperDollInfoDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_APIDocumentationGenerated/PaperDollInfoDocumentation.lua)
 exposes `IsRangedSlotShown()` returning `isShown`. Camelot uses it to hide the
@@ -196,196 +231,92 @@ not proof that the slot is unsupported when hidden.
 Core requires `GetInventorySlotInfo` to identify all three weapon slots with
 the expected IDs before enabling operations. Neither `IsRangedSlotShown()` nor
 `IsInventorySlotEnabled(slotName)` discards an empty ranged slot.
-Confirm slot lookup and saved-empty behavior in the beta. Source declarations
-alone do not establish successful saves or equips for those slots.
 
-Core verification still needs:
+### Open client questions
 
-1. Confirm `GetInventorySlotInfo` identifies main hand 16, off hand 17, and
-   ranged 18 on the target client.
-2. Verify all identified weapon slots remain in snapshots, including empty
-   hidden ranged, across relevant characters/classes.
-3. Verify actual saved item-ID, location, and ignored-slot results against the
-   declared constants and the observed sparse result format. Do not interpret
-   nil alone as empty. Require an explicit false ignore flag and no item ID.
-   Verify native empty-slot equipping separately from reading saved tables.
-4. Verify the exact save results and synchronous callbacks before asserting
-   saved configuration correctness.
-5. Verify `UseEquipmentSet` return/event timing, failure, partial completion,
-   hardware-event restrictions, and combat restrictions in the client.
+Source alone cannot answer these; they belong to in-client testing:
 
-## Local validation
+1. Whether `GetInventorySlotInfo` identifies main hand 16, off hand 17, and
+   ranged 18 on every relevant character and class.
+2. Whether all weapon slots, including empty hidden ranged, round-trip through
+   save and equip.
+3. Whether explicit empty `0`, ignored `1`, and missing `-1` sentinels appear in
+   any native results, and how native equipping handles saved empty slots.
+4. Exact save results and synchronous callbacks for each save path.
+5. `UseEquipmentSet` return/event timing, failure, partial completion,
+   hardware-event restrictions, and combat restrictions.
+6. Native ammo behavior, and Unicode name handling in the native manager.
 
-- Inspected the runtime, TOC, documentation, and selected sections of the mock
-  suite. The pinned-source findings above remain source evidence only.
-- Whitespace checks passed for the four assigned files. The stale-status search
-  found no remaining documentation-only or absent-runtime labels in the docs.
+## Automated tests
 
-### Historical reported validation: 2026-10-12
+### Tooling
 
-The owner reported the following results using Lua 5.1.5 from the official
-[LuaRocks legacy Windows package](https://luarocks.github.io/luarocks/releases/luarocks-3.13.0-win32.zip).
-Archive SHA-256:
+Lua 5.1 comes from the official
+[LuaRocks legacy Windows package](https://luarocks.github.io/luarocks/releases/luarocks-3.13.0-win32.zip),
+archive SHA-256:
 
 ```text
 97606881b49d944f9febf1f7ae62fa2c2274ccf583ed9dda8fe6170c3e6128e1
 ```
 
-Only bundled `win32/lua5.1/bin` and `COPYING` were extracted under ignored
-`.tools/`. No installer ran and no PATH change was made. This is development
-tooling, not an AddOn runtime dependency.
+Extract only the bundled `win32/lua5.1/bin` and `COPYING` under ignored
+`.tools/`. No installer or PATH change is needed.
 
-Commands from the Git Bash repository root:
+Python is the portable Windows 3.13.7 interpreter from the official
+[python.org embeddable archive](https://www.python.org/ftp/python/3.13.7/python-3.13.7-embed-amd64.zip),
+extracted under ignored `.tools/python-3.13.7/`. Workflow linting uses
+[actionlint](https://github.com/rhysd/actionlint/releases/tag/v1.7.12).
+All of these are development-only and excluded from the installable package.
+On the Ubuntu CI runner, use native `python3` and apt's `lua5.1`, not the local
+Windows executables.
+
+### Commands
+
+From the Git Bash repository root:
 
 ```sh
 .tools/luarocks-3.13.0-win32/win32/lua5.1/bin/lua5.1.exe tests/run.lua
 .tools/luarocks-3.13.0-win32/win32/lua5.1/bin/luac5.1.exe -p Commands.lua Equipment.lua Core.lua UI.lua tests/run.lua
+.tools/python-3.13.7/python.exe -m unittest discover -s tests -p 'test_*.py'
 ```
 
-- Mock suite: **203/203 passed**.
-- Syntax check: **passed** for all four runtime Lua files and `tests/run.lua`.
-- Independent review: same suite **203/203 passed**; no high-priority bugs found.
+### Coverage
 
-The initial automated run and independent review preceded the client finding
-below. Their mocks assumed explicit location sentinels for ignored/empty slots.
-The passing results did not prove that assumption.
+`tests/run.lua` contains mock tests for parsing/name validation, capabilities,
+save/overwrite and empty slots, flag restoration and defects, equipment swaps,
+and custom-panel behavior. It also compiles runtime Lua files under Lua 5.1.
+The Python suite covers the ZIP builder, CurseForge publisher, and provenance
+verifier offline with mocked APIs.
 
-### Sparse beta results and regression fix: 2026-10-12
+Maintain regression coverage for:
 
-The owner reported a verification error after saving `Shield-Set`, set ID 2.
-Read-only client probes returned:
+- Save-panel guards, literal-name validation, input and focus retention, shared
+  Save/Enter acceptance, no StaticPopup use, and Escape.
+- Core-owned equip feedback, paging, parent visibility, combat hiding only the
+  save panel, and both login-handler orders, including missing timer APIs.
+- Combat rejection before any native equip call, exactly one core error, combat
+  list browsing/paging, retention after a false equip return, error/tooltip
+  guidance, no equip queue, and unchanged save guards.
+- Duplicates, locks, missing items, full bags, set limits, sparse native result
+  tables, and failed/partial swaps.
 
-- `GetIgnoredSlots`: true for slots 1..15 and 19; false for 16, 17, and 18.
-- `GetItemLocations`: only `[16] = 1048592`, `[17] = 1048593`.
-- `GetItemIDs`: only `[16] = 2011`, `[17] = 6320`.
-
-This verifies the non-weapon ignore flags and sparse returned tables. It does
-not independently verify that native equipping restores an empty ranged slot.
-
-The fix accepts omitted ignored locations. It normalizes an omitted weapon
-location only when the ignore flag is explicitly false and the item ID is absent.
-It does not mutate native result tables. Unknown slot data, absent occupied
-locations, and explicit missing-item sentinels remain failures.
-
-Added eight regression tests, including the supplied Shield-Set data. Executed
-the commands above under Lua 5.1.5: **211/211 tests passed**, and syntax checks
-passed for all runtime Lua files plus the tests. Retest the updated Equipment.lua
-in client. The remaining checklist items are still open.
-
-### Latest reported validation: 2026-10-12
-
-The owner supplied the completed agent-executed results under Lua 5.1.5:
-
-- Mock suite: **270/270 passed**.
-- Syntax check: **passed** with
-  `luac5.1 -p Commands.lua Equipment.lua Core.lua UI.lua tests/run.lua`.
-
-The latest coverage includes:
-
-- Combat rejection in `Equipment.PrepareEquip` before any native equip API call.
-- Exactly one core message with native `/equipset` guidance; no duplicate UI feedback.
-- Combat list opening, browsing, and paging, plus retention when combat starts.
-- A false equip return and clear error guidance that keep the list open.
-- Tooltip guidance for out-of-combat UI equip and native commands/macros in combat.
-- No deferred equip queue; combat exit does not execute a rejected request.
-- Unchanged combat and Equipment Manager save guards.
-
-The earlier **263/263** agent-executed run on 2026-10-12 preceded restoration of
-the combat guard. It is historical, as are the 203/203 and 211/211 runs above.
-These reported results were not rerun for this documentation update.
-Mocks do not verify panel colors, layout, native combat permissions, or taint.
-
-### Owner-reported follow-up tests: 2026-10-12
-
-After the suggested checks for unchanged armor, empty off-hand/two-handed
-restoration, reload/relog persistence, and combat behavior, the owner reported
-"Tests passed." Treat this as an initial user-reported pass, not a full client
-compatibility result. Detailed per-case results were not supplied.
-
-The owner also reported that an earlier set removed armor mid-combat. Re-saving
-that set resolved the issue. No original set tables were captured. The sparse
-fix changed verification, not the native save operation; it does not establish
-the cause of the earlier armor removal. Native `/equipset` does not use WSF's
-validation. Re-save early experimental sets before using them in combat.
-
-The owner conclusively repeated the same-set combat comparison on the target
-beta. Custom WSF UI could not swap and reported a generic WSF swap failure that
-referred to bag space. The following native macro worked:
-
-```text
-/equipset [noequipped:shield] Shield-Set; DPS-Set
-```
-
-Record this as a confirmed owner-observed beta limitation, not an independently
-instrumented result or proof of an internal permission root cause. Native combat
-support remains owner-confirmed. Recommend this macro for the owner's named sets.
-The earlier authorization for direct WSF combat API testing is superseded by an
-out-of-combat core guard. New guard, tooltip, panel visuals, and taint checks
-remain open. Do not treat the earlier smoke test as verification of these changes.
-
-The checklist below remains the full test plan. The reported pass does not
-close unreported cases such as ammo, ranged empties, item failures, taint, and
-character isolation.
-
-## Local release automation validation: 2026-10-13
-
-Executed locally after working-tree text normalization to LF:
-
-- Lua 5.1.5 suite: **270/270 passed**. Keep the original 2026-10-12 results above
-  as history, not a replacement for this run.
-- Lua syntax checks passed for Commands.lua, Equipment.lua, Core.lua, UI.lua,
-  and tests/run.lua. Syntax checks also passed for all four Lua files extracted
-  from the generated release ZIP.
-- Python 3.13.7 suite: **62/62 passed**, comprising 22 ZIP-builder, 30 CurseForge
-  publisher, and 10 provenance tests. These are offline tests with mocked APIs.
-- Python compilation passed for scripts/build_release.py,
-  scripts/publish_curseforge.py, and scripts/verify_release.py.
-- actionlint 1.7.12 passed for .github/workflows/release.yml after the final
-  source-commit and remote-tag verification edits.
-- The builder created the exact six-file WeaponSetsForever-0.1.0-beta.zip.
-  Archive validation and integrity checks passed. SHA-256:
-
-```text
-ccebf3646175de74b2ff27c7f497c33ac80f63fba2c584a009604e33ce4f74cf
-```
-
-Python is the portable Windows 3.13.7 interpreter from the reviewed official
-[python.org embedded archive](https://www.python.org/ftp/python/3.13.7/python-3.13.7-embed-amd64.zip),
-extracted under ignored .tools/python-3.13.7/. No installer ran and PATH did not
-change. actionlint came from its official
-[v1.7.12 release](https://github.com/rhysd/actionlint/releases/tag/v1.7.12).
-These tools are development-only and are excluded from the installable package.
-
-Commands use .tools/python-3.13.7/python.exe locally. On the Ubuntu CI runner,
-use native python3 and apt's lua5.1, not the local Windows executables.
-
-The local build manifest has no source_commit because local main has no commits.
-CI records its actual GITHUB_SHA. Source-commit metadata is external provenance,
-not a commit inferred from the ZIP. The provenance verifier checks that the
-remote annotated or lightweight tag still points to that tested commit.
-
-The working tree and tracked text report i/lf w/lf through git ls-files --eol.
-Binary logo bytes are unchanged. Normalization did not stage or renormalize the
-index, and the existing core.autocrlf=input setting was left unchanged.
-No runtime logic changed as part of the line-ending fix.
-
-No GitHub-hosted workflow run, live CurseForge upload, or client installation
-from this ZIP was tested. Local tests and lint do not prove remote publication,
-configured approval gates, manager update detection, or full client compatibility.
-See [docs/RELEASE_PLAN.md](docs/RELEASE_PLAN.md) for installed workflow setup,
-publication controls, and retry restrictions.
+Mocks encode assumptions about the client. When a client observation differs
+from a mock, treat the mock as wrong, update it, and add a regression test.
 
 ## In-client checklist
 
 Use disposable unique names first. For each case, record the build, character,
 class, initial gear, set configuration, action, result, messages, and errors.
 Record each non-weapon slot before and after every save/equip test.
+`/wsf export Name` captures the native set tables and current gear in one
+step; run it before and after an action and compare the `current` objects.
+Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
 
 ### Installation and UI
 
-- [ ] Install the existing TOC and runtime files. Confirm Interface 16001 and
-      load order Commands, Equipment, Core, UI. Copy the five files under
-      `Interface/AddOns/WeaponSetsForever/`.
+- [ ] Install the TOC and runtime files under
+      `Interface/AddOns/WeaponSetsForever/`. Confirm Interface 16001 and load
+      order Commands, Equipment, Core, UI.
 - [ ] Verify core accepts version 1.60.1 / build 70338 / Interface 16001 and
       rejects mismatched values or missing slot identities before unsafe operations.
 - [ ] Login and `/reload` with the Character panel closed and open. Confirm
@@ -397,7 +328,7 @@ Record each non-weapon slot before and after every save/equip test.
       Character mode changes, window position, UI scale, and display size.
 - [ ] Verify both custom panels have dark-brown backgrounds, gold borders and
       headings, warm text, and subtle separators. Check the exact heading
-      `Weapon Sets Forever` on each panel. Record new actual client results.
+      `Weapon Sets Forever` on each panel.
 - [ ] Confirm native WSF Save/Equip buttons retain their placement, size 120x28,
       and bottom offset 90. Check panel/button clearance, socket displays,
       item flyouts, model controls, and gamepad legend at different UI scales.
@@ -448,9 +379,9 @@ Record each non-weapon slot before and after every save/equip test.
       weapons. Test transitions in both directions.
 - [ ] Preserve empty main hand, off hand, and supported ranged, including hidden
       empty ranged. Compare native IDs, locations, and ignored-slot values.
-      Verify empty-slot restoration with the observed sparse tables. An omitted
-      location needs an explicit false ignore flag and no item ID. Check explicit
-      empty `0`, ignored `1`, and missing `-1` results when the client returns them.
+      Verify empty-slot restoration with sparse tables. An omitted location
+      needs an explicit false ignore flag and no item ID. Check explicit empty
+      `0`, ignored `1`, and missing `-1` results when the client returns them.
 - [ ] Verify ignored non-weapon slots in `1..19` stay unchanged.
 - [ ] Verify native ammo slot `0` behavior and unchanged ammo separately. WSF
       does not individually set slot-0 ignore flags; mocks do not prove its behavior.
@@ -468,22 +399,3 @@ Record each non-weapon slot before and after every save/equip test.
       custom AddOn handler has native secure-command permission.
 - [ ] Verify native sets after `/reload` and relog. Verify the same name on two
       characters remains isolated. Confirm no AddOn SavedVariables are needed.
-
-## Automated coverage and remaining checks
-
-`tests/run.lua` contains mock tests for parsing/name validation, capabilities,
-save/overwrite and empty slots, flag restoration and defects, equipment swaps,
-and custom-panel behavior. It also compiles runtime Lua files under Lua 5.1.
-The latest reported suite passed 270/270 under Lua 5.1.5 on 2026-10-12.
-The separate syntax check passed for all four runtime Lua files and tests/run.lua.
-Historical results appear in Local validation above.
-
-Keep UI regression checks for save-panel guards, literal-name validation, input
-and focus retention, shared Save/Enter acceptance, no StaticPopup use, Escape,
-core-owned equip feedback, paging, parent visibility, combat hiding only save,
-and both login-handler orders, including missing timer APIs. Retain the passing
-regressions for combat rejection before any native equip call, exactly one core
-error, combat list browsing/paging, retention after a false equip return,
-error/tooltip guidance, no equip queue, and unchanged save guards.
-Keep checks for duplicates, locks, missing items, full bags, set limits, and
-failed/partial swaps. Mock checks cannot establish taint or native game behavior.
