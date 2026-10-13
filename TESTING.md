@@ -94,15 +94,22 @@ reports `1.60.1.70338`.
   `PaperDollFrame_ShowSidebar` hides `PaperDollItemsFrame` for the pet sidebar.
 - [`ThreeSliceButtonTemplate.xml`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/Interface/AddOns/Blizzard_SharedXML/Shared/Button/ThreeSliceButtonTemplate.xml)
   defines `SharedButtonSmallTemplate`, with default size 138 by 28. The native
-  manager also uses it. WSF uses the same template at 120 by 28.
+  manager also uses it. WSF uses the same template for buttons inside its panels.
+- The same `PaperDollFrame.xml` stacks the left column from `CharacterHeadSlot`
+  down to `CharacterWristSlot`, and the right column from `CharacterHandsSlot`
+  down to `CharacterTrinket1Slot`, with 6-pixel gaps.
 
-WSF places two buttons side by side, centered at bottom y=90 in the left pane.
-Their total width is 246. This uses the central model area rather than external
-panel space, the side slots, the bottom weapon row, or the native manager.
-The equip list opens above the buttons and temporarily covers the model.
-Source anchors support this placement choice, but they do not prove visual
-clearance at every UI scale. Check sockets, flyouts, model input, and gamepad
-legends in the client.
+WSF places a 28x28 icon-only Save button 6 pixels beneath `CharacterWristSlot`
+and an Equip button 6 pixels beneath `CharacterTrinket1Slot`. Stat AddOns
+commonly draw text beside the slots and the weapon row, and the earlier centered
+text buttons covered that text; the space beneath each column is outside it.
+Save shows `Textures/SaveIcon.tga`, a 64 x 64 crop of the logo emblem built
+by `scripts/build_icon.py`; Equip shows the built-in `INV_Sword_04` icon. Both
+use the `ButtonHilight-Square` highlight. Both panels open centered at bottom y=124 in
+the left pane and temporarily cover the model. If either anchor slot is
+missing, WSF creates no controls. Source anchors do not prove visual clearance
+at every UI scale, or that these icon files exist on the client. Check icons,
+sockets, flyouts, model input, and gamepad legends in the client.
 
 ### Custom WSF panels
 
@@ -111,8 +118,9 @@ The following is WSF source and policy, not visual client verification:
 
 - Both custom panels have dark-brown backgrounds, gold borders and headings,
   warm text, and subtle separators. Each heading is exactly `Weapon Sets Forever`.
-- The native `WSF Save` and `WSF Equip` buttons keep their placement, size 120x28,
-  and bottom offset 90. No assets or runtime dependencies are added.
+- The icon-only Save and Equip buttons sit beneath the left and right slot
+  columns, keep their tooltips, and desaturate when WSF is unavailable. No
+  assets or runtime dependencies are added.
 - The save panel exposes `.editBox`, `.saveButton`, and `.cancelButton`.
   Its input is a literal name. Validate before `WSF.Save`; retain input and focus
   after validation or save failure. Save and Enter share one acceptance path.
@@ -329,8 +337,9 @@ Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
 - [ ] Verify both custom panels have dark-brown backgrounds, gold borders and
       headings, warm text, and subtle separators. Check the exact heading
       `Weapon Sets Forever` on each panel.
-- [ ] Confirm native WSF Save/Equip buttons retain their placement, size 120x28,
-      and bottom offset 90. Check panel/button clearance, socket displays,
+- [ ] Confirm the Save and Equip icons render (not blank or green), sit beneath
+      the wrist and lower trinket slots, show tooltips, and do not cover stat
+      AddOn text. Check panel/button clearance, socket displays,
       item flyouts, model controls, and gamepad legend at different UI scales.
       Confirm pet view and parent hiding close both WSF panels.
 - [ ] Confirm WSF opens no StaticPopup dialogs and leaves Blizzard's native

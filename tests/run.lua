@@ -1091,6 +1091,9 @@ local function uiFixture(options)
         function object:SetFocus() self.focus = true end
         function object:ClearFocus() self.focus = false end
         function object:SetColorTexture(...) self.color = {...} end
+        function object:SetTexture(path) self.texturePath = path end
+        function object:SetDesaturated(value) self.desaturated = value end
+        function object:SetHighlightTexture(path, mode) self.highlight = {path, mode} end
         function object:CreateTexture(name, layer)
             local texture = widget("Texture", name, self)
             texture.layer = layer
@@ -1116,6 +1119,10 @@ local function uiFixture(options)
     env.PaperDollFrame = widget("Frame", nil, env.CharacterFrame)
     env.PaperDollFrame.EquipmentManagerPane = manager
     env.PaperDollFrame.ItemsFrame = widget("Frame", nil, env.PaperDollFrame)
+    if not options.missingSlots then
+        env.CharacterWristSlot = widget("ItemButton", nil, env.PaperDollFrame.ItemsFrame)
+        env.CharacterTrinket1Slot = widget("ItemButton", nil, env.PaperDollFrame.ItemsFrame)
+    end
     env.GameTooltip = widget("Tooltip")
     env.GameTooltip:Hide()
     function env.GameTooltip:SetOwner(owner, anchor) self.owner, self.anchor = owner, anchor end
@@ -1146,13 +1153,14 @@ local function uiFixture(options)
     end
     state.emit("PLAYER_LOGIN")
     state.advance(0)
+    if options.missingSlots then return state end
     state.saveDialog = env.WeaponSetsForeverSaveDialog
     state.equipDialog = env.WeaponSetsForeverEquipDialog
     equal(type(state.saveDialog), "table", "named save dialog")
     equal(type(state.equipDialog), "table", "named equip dialog")
     state.controls = state.saveDialog:GetParent()
-    state.saveButton = state.button(state.controls, "WSF Save")
-    state.equipButton = state.button(state.controls, "WSF Equip")
+    state.saveButton = state.controls.save
+    state.equipButton = state.controls.equip
     same(env.StaticPopupDialogs, {}, "no StaticPopup registration")
     return state
 end
@@ -1491,21 +1499,37 @@ test("equip row checks availability before core call", function()
 end)
 test("custom dialogs capture headings, native rectangle colors, and button placement", function()
     local state = uiFixture()
-    same(state.controls.points[1], {"BOTTOM", state.env.CharacterFrame.LeftPaneHost, "BOTTOM", 0, 90})
-    equal(state.controls.width, 246)
-    equal(state.controls.height, 28)
-    for _, button in ipairs({state.saveButton, state.equipButton}) do
-        equal(button.width, 120)
+    local items = state.env.PaperDollFrame.ItemsFrame
+    equal(state.controls.parent, items)
+    same(state.controls.allPoints, {items})
+    equal(state.controls.mouseEnabled, nil, "container must not intercept slot clicks")
+    local icons = {
+        {state.saveButton, state.env.CharacterWristSlot,
+            "Interface\\AddOns\\WeaponSetsForever\\Textures\\SaveIcon"},
+        {state.equipButton, state.env.CharacterTrinket1Slot, "Interface\\Icons\\INV_Sword_04"},
+    }
+    for _, case in ipairs(icons) do
+        local button, slot, icon = case[1], case[2], case[3]
+        equal(button.kind, "Button")
+        equal(button.template, nil, "icon buttons use no text template")
+        equal(button.text, "", "icon buttons have no label")
+        equal(button.width, 28)
         equal(button.height, 28)
-        equal(button.template, "SharedButtonSmallTemplate")
+        same(button.points, {{"TOP", slot, "BOTTOM", 0, -6}})
+        equal(button.icon.texturePath, icon)
+        equal(button.icon.layer, "ARTWORK")
+        same(button.icon.points, {{"TOPLEFT", 1, -1}, {"BOTTOMRIGHT", -1, 1}})
+        same(button.highlight, {"Interface\\Buttons\\ButtonHilight-Square", "ADD"})
+        same(button.textures[1].color, {0.12, 0.065, 0.035, 1})
+        for index = 2, 5 do
+            same(button.textures[index].color, {0.68, 0.49, 0.22, 1})
+        end
     end
-    same(state.saveButton.points[1], {"TOPLEFT"})
-    same(state.equipButton.points[1], {"LEFT", state.saveButton, "RIGHT", 6, 0})
     for _, dialog in ipairs({state.saveDialog, state.equipDialog}) do
         equal(state.env[dialog:GetName()], dialog)
         equal(dialog.strata, "DIALOG")
         equal(dialog.mouseEnabled, true)
-        same(dialog.points[1], {"BOTTOM", state.controls, "TOP", 0, 6})
+        same(dialog.points[1], {"BOTTOM", state.env.CharacterFrame.LeftPaneHost, "BOTTOM", 0, 124})
         equal(dialog.labels[1].text, "Weapon Sets Forever")
         equal(dialog.labels[1].template, "GameFontNormal")
         same(dialog.labels[1].textColor, {0.68, 0.49, 0.22})
@@ -1529,6 +1553,29 @@ test("custom dialogs capture headings, native rectangle colors, and button place
     equal(state.saveDialog.saveButton:GetText(), "Save")
     equal(state.saveDialog.cancelButton:GetText(), "Cancel")
 end)
+test("missing side slot frames leave the UI uncreated without errors", function()
+    local state = uiFixture({missingSlots = true})
+    equal(state.env.WeaponSetsForeverSaveDialog, nil)
+    equal(state.env.WeaponSetsForeverEquipDialog, nil)
+    for _, item in ipairs(state.widgets) do
+        if item.kind == "Button" then error("no WSF buttons expected") end
+    end
+end)
+
+test("icon buttons disable and desaturate when unavailable", function()
+    local state = uiFixture()
+    for _, button in ipairs({state.saveButton, state.equipButton}) do
+        equal(button.enabled, true)
+        equal(button.icon.desaturated, false)
+    end
+    state.wsf.available = false
+    state.fire(state.controls, "OnShow")
+    for _, button in ipairs({state.saveButton, state.equipButton}) do
+        equal(button.enabled, false)
+        equal(button.icon.desaturated, true)
+    end
+end)
+
 test("dialog Escape registration is named and occurs only once", function()
     local state = uiFixture()
     same(state.env.UISpecialFrames, {"WeaponSetsForeverEquipDialog", "WeaponSetsForeverSaveDialog"})

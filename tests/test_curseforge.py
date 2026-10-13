@@ -48,6 +48,9 @@ class CurseForgeTests(unittest.TestCase):
         (source / "LICENSE").write_bytes(builder.MIT_NOTICE.encode("utf-8"))
         for name in builder.RUNTIME_FILES:
             (source / name).write_bytes(b"local addonName, WSF = ...\n")
+        for name in builder.MEDIA_FILES:
+            (source / name).parent.mkdir(parents=True, exist_ok=True)
+            (source / name).write_bytes((ROOT / name).read_bytes())
         self.dist = self.base / "dist"
         self.tag = "v" + version
         self.manifest = builder.build_release(source, self.dist, tag=self.tag)

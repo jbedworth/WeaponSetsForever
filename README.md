@@ -26,7 +26,9 @@ Retail, and other Classic clients are not supported.
 - Save main-hand, off-hand, and ranged configurations, including shields and held
   off-hand items. Keep intentionally empty weapon slots in the snapshot.
 - Ignore native non-weapon equipment slots rather than manage complete outfits.
-- Use **WSF Save** and **WSF Equip** in the Character equipment panel.
+- Use the **Save** and **Equip** icon buttons in the Character equipment panel.
+  They sit beneath the left and right slot columns, clear of the stat text that
+  other AddOns draw beside the slots.
 - Use `/wsf save` for saving and native `/equipset` for command or macro swaps.
 - Use `/wsf export` to print equipped item IDs by slot, or a saved set, as JSON.
 - Keep sets per character through native WoW persistence.
@@ -39,9 +41,13 @@ are outside the project's scope.
 
 1. Equip the weapons you want to save.
 2. Open the Character equipment panel and close the native Equipment Manager pane.
-3. Click **WSF Save**, enter a name, and click **Save** or press Enter.
+3. Click the **Save** icon (the WSF shield logo, beneath the wrist slot), enter a name, and
+   click **Save** or press Enter.
 4. Repeat with another weapon configuration.
-5. Outside combat, click **WSF Equip** and select a saved set.
+5. Outside combat, click the **Equip** icon (a sword, beneath the lower trinket
+   slot) and select a saved set.
+
+Hover over either icon for help text.
 
 The custom name field accepts a literal name. Spaces need no quotes there.
 The equip list shows eight sets per page. You can browse it in combat, but WSF
@@ -156,6 +162,8 @@ WeaponSetsForever/
     Core.lua
     UI.lua
     LICENSE
+    Textures/
+        SaveIcon.tga
 ```
 
 The TOC loads Commands, Equipment, Core, then UI. It declares no SavedVariables.
@@ -212,7 +220,7 @@ python3 scripts/build_release.py --output dist
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The local build needs no credentials. It writes the six-file installable ZIP,
+The local build needs no credentials. It writes the seven-file installable ZIP,
 SHA-256 sidecar, manifest, and release notes to ignored `dist/`. Optional
 `--source-commit` records a real full commit SHA outside the ZIP; it does not
 prove that the working tree matches that commit.
@@ -220,7 +228,17 @@ prove that the working tree matches that commit.
 On Windows, a portable Python 3.13.7 from the official `python.org` embeddable
 archive can live under ignored `.tools/python-3.13.7/`; use its `python.exe` in
 place of `python3`. CI uses native Python 3 on `ubuntu-24.04` and installs Lua 5.1
-through apt. `.gitattributes` keeps text LF and image/ZIP files binary.
+through apt. `.gitattributes` keeps text LF and image/ZIP/TGA files binary.
+
+The Save button's `Textures/SaveIcon.tga` is generated from the 512-pixel logo:
+
+```sh
+python3 scripts/build_icon.py
+```
+
+It crops the shield-and-swords emblem, box-filters it to 64 x 64, and writes an
+uncompressed 32-bit TGA. A test fails if the committed TGA differs from a fresh
+build, so rerun the script whenever the logo changes.
 
 Client source review is pinned to Gethe/wow-ui-source commit
 [`943764493e6b16d63ded3ab304150d1f05e58b57`](https://github.com/Gethe/wow-ui-source/tree/943764493e6b16d63ded3ab304150d1f05e58b57),
@@ -233,7 +251,8 @@ The [artwork directory](artwork/README.md) contains an
 [editable SVG](artwork/weapon-sets-forever-logo.svg), a
 [1024-pixel PNG](artwork/weapon-sets-forever-logo.png), and a
 [512-pixel PNG](artwork/weapon-sets-forever-logo-512.png).
-These are publishing assets, not runtime textures.
+These are publishing assets. The only runtime texture derived from them is the
+Save button icon in `Textures/`.
 
 Source: [jbedworth/WeaponSetsForever](https://github.com/jbedworth/WeaponSetsForever).
 CI tests and builds on `main` pushes, pull requests, and manual runs. Releases

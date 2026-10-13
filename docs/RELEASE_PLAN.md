@@ -14,7 +14,7 @@ flowchart TD
     A[Manual build or authorized version tag] --> B[Checkout exact commit]
     B --> C[Lua 5.1 syntax and tests]
     C --> D[Validate version and client metadata]
-    D --> E[Stage six allowed files]
+    D --> E[Stage seven allowed files]
     E --> F[Create and validate ZIP and checksum]
     F --> G[Retain build artifact]
     G --> H[Author approval via release environment]
@@ -37,6 +37,7 @@ WeaponSetsForever/
     Core.lua
     UI.lua
     LICENSE
+    Textures/SaveIcon.tga
 ```
 
 The validator permits one optional empty root directory entry. Additional files
@@ -46,8 +47,11 @@ agent guidance, generated logs, and all credentials/player data.
 
 Use an explicit file allowlist. Do not ZIP the checkout and maintain a growing
 list of exclusions. Keep `LICENSE` in the package, but do not load it in the TOC.
-Keep the built-in `INV_Sword_04` icon; the publishing logo is not a runtime
-texture. Do not add runtime artwork as part of release automation.
+Keep the built-in `INV_Sword_04` TOC icon. The only runtime texture is
+`Textures/SaveIcon.tga`, generated from the logo by `scripts/build_icon.py` and
+committed; release automation packages it but never generates or alters art.
+The builder requires it to be an uncompressed, 32-bit, square TGA with
+power-of-two sides.
 
 Validate the actual archive, not only the staging folder:
 
@@ -79,7 +83,7 @@ On Windows, use the portable `.tools/python-3.13.7/python.exe` in place of
 uses `ubuntu-24.04`, native `python3`, and apt-installed `lua5.1`; it cannot run
 the local Windows `.tools/` binaries.
 
-`scripts/build_release.py` uses the six-file allowlist, validates the
+`scripts/build_release.py` uses the seven-file allowlist, validates the
 TOC/version/license and actual archive, and writes to `dist/`:
 
 - `WeaponSetsForever-<version>.zip`;
@@ -87,7 +91,7 @@ TOC/version/license and actual archive, and writes to `dist/`:
 - `release-manifest.json`;
 - `release-notes.md`.
 
-Only the six package files are inside the installable ZIP. Checksums, manifest,
+Only the seven package files are inside the installable ZIP. Checksums, manifest,
 and notes stay outside it. Identical inputs and toolchain produce deterministic
 ZIP bytes; this is not a cross-toolchain compression guarantee. The builder does
 not itself run Lua syntax checks or establish client compatibility.
@@ -334,7 +338,7 @@ Do not add a self-updater to the AddOn.
 
 ### Custom builder rather than BigWigs packager
 
-This AddOn has only six distribution files, so the project uses a small
+This AddOn has only seven distribution files, so the project uses a small
 allowlist ZIP builder plus separate publication jobs: a Linux runner obtains
 Lua 5.1, runs the suite, builds the archive, retains it as an artifact, and
 publishes the tested bytes through GitHub CLI and the documented CurseForge
@@ -352,7 +356,7 @@ for this project:
 - `.pkgmeta` can set `package-as: WeaponSetsForever` and exclude development
   material. Exclusions alone are not our package allowlist; validate the ZIP.
 - Its default changelog generation creates `CHANGELOG.md` inside the package,
-  violating the six-file contract, unless configured otherwise.
+  violating the seven-file contract, unless configured otherwise.
 - Its CurseForge uploader can fall back to another game version when an exact
   match is absent. The workflow must fail before publishing if Forever `1.60.1`
   is unavailable; a warning and a nearby version are not acceptable.

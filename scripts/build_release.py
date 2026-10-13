@@ -1,4 +1,4 @@
-"""Build and verify the six-file installable release. Python 3, standard library only.
+"""Build and verify the seven-file installable release. Python 3, standard library only.
 
 Publishers must call validate_archive on the existing ZIP and compare its returned
 metadata and sha256 with release-manifest.json before uploading those same bytes.
@@ -21,7 +21,13 @@ from pathlib import Path
 
 ADDON = "WeaponSetsForever"
 RUNTIME_FILES = ("Commands.lua", "Equipment.lua", "Core.lua", "UI.lua")
-PACKAGE_FILES = (ADDON + ".toc",) + RUNTIME_FILES + ("LICENSE",)
+TEXT_FILES = (ADDON + ".toc",) + RUNTIME_FILES + ("LICENSE",)
+# Runtime textures are built by scripts/build_icon.py from approved artwork.
+MEDIA_FILES = ("Textures/SaveIcon.tga",)
+PACKAGE_FILES = TEXT_FILES + MEDIA_FILES
+TGA_HEADER_SIZE = 18
+TGA_TRUECOLOR = 2
+TGA_SIZES = (16, 32, 64, 128, 256)
 # This release contract describes the current exact source gate, not a client framework.
 INTERFACE = 16001
 GAME_VERSION = "1.60.1"
@@ -92,8 +98,28 @@ def _text(name, data):
     return text
 
 
+def _validate_tga(name, data):
+    """Require an uncompressed 32-bit square TGA with power-of-two sides."""
+    if len(data) < TGA_HEADER_SIZE:
+        raise ValueError(f"{name}: TGA header is truncated")
+    id_length, color_map, image_type = data[0], data[1], data[2]
+    width = int.from_bytes(data[12:14], "little")
+    height = int.from_bytes(data[14:16], "little")
+    depth, descriptor = data[16], data[17]
+    if color_map != 0 or image_type != TGA_TRUECOLOR:
+        raise ValueError(f"{name}: require an uncompressed true-color TGA")
+    if width != height or width not in TGA_SIZES:
+        raise ValueError(f"{name}: require square power-of-two TGA dimensions")
+    if depth != 32 or descriptor & 0x0F != 8:
+        raise ValueError(f"{name}: require 32-bit TGA pixels with 8 alpha bits")
+    if len(data) != TGA_HEADER_SIZE + id_length + width * height * 4:
+        raise ValueError(f"{name}: TGA size does not match its header")
+
+
 def _validate_files(files, expected_version=None):
-    texts = {name: _text(name, files[name]) for name in PACKAGE_FILES}
+    texts = {name: _text(name, files[name]) for name in TEXT_FILES}
+    for name in MEDIA_FILES:
+        _validate_tga(name, files[name])
     metadata = {}
     loads = []
     for line in texts[ADDON + ".toc"].splitlines():
@@ -144,7 +170,7 @@ def validate_archive(path, expected_version):
     The ZIP has no tag field. The returned tag is empty. Publishers must validate
     the external manifest's tag separately with validate_tag. Commit provenance
     is not returned because it cannot be derived from the ZIP. No extraction occurs.
-    One optional root directory entry is allowed; all six files are required.
+    One optional root directory entry is allowed; all package files are required.
     """
     validate_version(expected_version)
     path = Path(path)
@@ -178,7 +204,7 @@ def validate_archive(path, expected_version):
                     raise ValueError(f"ZIP entry must use DEFLATE: {name}")
                 files[name.split("/", 1)[1]] = archive.read(entry)
             if set(files) != set(PACKAGE_FILES):
-                raise ValueError("ZIP must contain exactly the six package files")
+                raise ValueError("ZIP must contain exactly the package files")
             version = _validate_files(files, expected_version)
     except (OSError, zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
             NotImplementedError, EOFError, zlib.error) as error:

@@ -45,7 +45,8 @@ outfit management, frameworks, or speculative features without agreement.
   dated status reports, test-result logs, or progress notes to the docs; report
   results in conversation, commits, CI runs, or release records instead.
 - The project uses the MIT License. The original brown/gold shield-and-swords
-  logo is publishing material, not a runtime dependency.
+  logo in artwork/ is publishing material. The one author-approved runtime
+  derivative is Textures/SaveIcon.tga, built from it by scripts/build_icon.py.
 - The TOC uses the built-in INV_Sword_04 icon and Category: Equipment. Preserve
   this user-selected category. Distribution-site categories are separate.
 - Git origin is git@github.com:jbedworth/WeaponSetsForever.git. Always inspect
@@ -161,9 +162,14 @@ outfit management, frameworks, or speculative features without agreement.
 - Use custom dark-brown save and equip panels with gold borders and headings,
   warm text, and subtle separators. Use the exact heading `Weapon Sets Forever`.
   Do not use the singular `Weapon Set Forever`.
-- Keep native `WSF Save` and `WSF Equip` buttons, their placement, size 120x28,
-  and bottom offset 90 unchanged. Add no runtime assets or dependencies without
-  agreement. Publishing artwork stays separate from the runtime.
+- Keep the author-approved icon-only Save and Equip buttons: 28x28, gold-bordered,
+  anchored 6 pixels beneath `CharacterWristSlot` (Save) and `CharacterTrinket1Slot`
+  (Equip), the last slots in each column, with their existing tooltips. They
+  replaced centered text buttons that overlapped stat text drawn by other
+  AddOns. Save shows the logo-derived Textures/SaveIcon.tga; Equip uses the
+  built-in INV_Sword_04 icon. Add no other runtime assets or dependencies without
+  agreement. Regenerate the Save icon with scripts/build_icon.py whenever the
+  logo changes; tests require the committed TGA to match the build.
 - Do not use StaticPopup dialogs for WSF. Leave Blizzard's native dialogs untouched.
 - The save panel exposes `.editBox`, `.saveButton`, and `.cancelButton`.
   Validate the literal name before `WSF.Save`. Validation and save failures
@@ -231,7 +237,9 @@ outfit management, frameworks, or speculative features without agreement.
   top-level `WeaponSetsForever/` folder and correctly named TOC. GitHub source archives
   are not a substitute for an installable release package.
 - Package only WeaponSetsForever.toc, Commands.lua, Equipment.lua, Core.lua,
-  UI.lua, and LICENSE under the top-level WeaponSetsForever/ folder. Exclude
+  UI.lua, LICENSE, and Textures/SaveIcon.tga under the top-level
+  WeaponSetsForever/ folder. The builder requires the TGA to be uncompressed,
+  32-bit, and square with power-of-two sides. Exclude
   .tools/, tests/, docs/, artwork/, agent guidance, and other development-only files.
   Do not load LICENSE through the TOC.
 - Use artwork/ for original logo sources and distribution images. Do not replace

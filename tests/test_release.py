@@ -41,6 +41,9 @@ class ReleaseTests(unittest.TestCase):
             (self.source / name).write_bytes((ROOT / name).read_bytes().replace(b"\r\n", b"\n"))
         for name in builder.RUNTIME_FILES:
             (self.source / name).write_bytes(b"local addonName, WSF = ...\n")
+        for name in builder.MEDIA_FILES:
+            (self.source / name).parent.mkdir(parents=True, exist_ok=True)
+            (self.source / name).write_bytes((ROOT / name).read_bytes())
         self.version = builder._validate_files(self.files())
         self.output = self.base / "dist"
 
@@ -232,6 +235,29 @@ class ReleaseTests(unittest.TestCase):
         files = self.files()
         files["WeaponSetsForever.toc"] += b"\n## Version: " + self.version.encode() + b"\n"
         self.reject_files(files)
+
+    def test_media_requires_square_uncompressed_32_bit_tga(self):
+        name = builder.MEDIA_FILES[0]
+        icon = self.files()[name]
+
+        def variant(offset, value):
+            changed = bytearray(icon)
+            changed[offset:offset + len(value)] = value
+            return bytes(changed)
+        for data in (b"", icon[:17], icon[:-1], icon + b"\0",
+                     variant(1, b"\x01"), variant(2, b"\x0a"),
+                     variant(12, (48).to_bytes(2, "little")),
+                     variant(14, (32).to_bytes(2, "little")),
+                     variant(16, b"\x18"), variant(17, b"\x20")):
+            with self.subTest(header=data[:18]):
+                files = self.files()
+                files[name] = data
+                self.reject_files(files)
+
+    def test_archive_places_media_under_addon_folder(self):
+        path, _ = self.build()
+        with zipfile.ZipFile(path) as archive:
+            self.assertIn("WeaponSetsForever/Textures/SaveIcon.tga", archive.namelist())
 
     def test_license_terms_and_copyright(self):
         for before, after in ((b"John Bedworth", b"Someone Else"), (b"2026", b"2025"),
