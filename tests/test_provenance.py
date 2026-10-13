@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 import build_release
 import verify_release
 from publish_curseforge import PublishError
@@ -34,6 +35,9 @@ class ProvenanceTests(unittest.TestCase):
         for name in build_release.RUNTIME_FILES:
             (source / name).write_text("local value = true\n", encoding="utf-8", newline="\n")
         (source / "LICENSE").write_text(build_release.MIT_NOTICE + "\n", encoding="utf-8", newline="\n")
+        for name in build_release.MEDIA_FILES:
+            (source / name).parent.mkdir(parents=True, exist_ok=True)
+            (source / name).write_bytes((ROOT / name).read_bytes())
         self.dist = root / "dist"
         build_release.build_release(source, self.dist, TAG, source_commit=COMMIT)
 

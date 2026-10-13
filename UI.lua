@@ -1,4 +1,4 @@
-local _, WSF = ...
+local addonName, WSF = ...
 
 local SAVE_DIALOG = "WeaponSetsForeverSaveDialog"
 local EQUIP_DIALOG = "WeaponSetsForeverEquipDialog"
@@ -6,7 +6,14 @@ local BUTTON_TEMPLATE = "SharedButtonSmallTemplate"
 local BUTTON_WIDTH = 120
 local BUTTON_HEIGHT = 28
 local GAP = 6
-local CONTROLS_BOTTOM_OFFSET = 90
+-- Panels open above the weapon row, between the side slot columns.
+local PANEL_BOTTOM_OFFSET = 124
+local ICON_BUTTON_SIZE = 28
+-- The Save icon is built from the logo by scripts/build_icon.py; the client
+-- resolves the .tga extension. Equip uses a built-in client icon.
+local SAVE_ICON = "Interface\\AddOns\\" .. addonName .. "\\Textures\\SaveIcon"
+local EQUIP_ICON = "Interface\\Icons\\INV_Sword_04"
+local ICON_HIGHLIGHT = "Interface\\Buttons\\ButtonHilight-Square"
 local LIST_WIDTH = 260
 local SAVE_WIDTH = 300
 local PANEL_INSET = 12
@@ -126,7 +133,7 @@ end
 local function CreatePanel(name, width, height)
     local panel = CreateFrame("Frame", name, controls)
     panel:SetSize(width, height)
-    panel:SetPoint("BOTTOM", controls, "TOP", 0, GAP)
+    panel:SetPoint("BOTTOM", CharacterFrame.LeftPaneHost, "BOTTOM", 0, PANEL_BOTTOM_OFFSET)
     panel:SetFrameStrata("DIALOG")
     panel:EnableMouse(true)
     panel:Hide()
@@ -142,6 +149,21 @@ local function CreateButton(parent, text, width)
     local button = CreateFrame("Button", nil, parent, BUTTON_TEMPLATE)
     button:SetSize(width or BUTTON_WIDTH, BUTTON_HEIGHT)
     button:SetText(text)
+    return button
+end
+
+-- Icon-only buttons sit beneath a side slot column, clear of text that other
+-- AddOns draw beside the slots and weapon row.
+local function CreateIconButton(icon, slot)
+    local button = CreateFrame("Button", nil, controls)
+    button:SetSize(ICON_BUTTON_SIZE, ICON_BUTTON_SIZE)
+    button:SetPoint("TOP", slot, "BOTTOM", 0, -GAP)
+    StylePanel(button)
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetPoint("TOPLEFT", 1, -1)
+    button.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    button.icon:SetTexture(icon)
+    button:SetHighlightTexture(ICON_HIGHLIGHT, "ADD")
     return button
 end
 
@@ -310,26 +332,28 @@ end
 
 local function UpdateAvailability()
     if controls then
-        controls.save:SetEnabled(not not WSF.available)
-        controls.equip:SetEnabled(not not WSF.available)
+        local available = not not WSF.available
+        for _, button in ipairs({controls.save, controls.equip}) do
+            button:SetEnabled(available)
+            button.icon:SetDesaturated(not available)
+        end
     end
 end
 
 local function Initialize()
     if controls or not loggedIn or not PaperDollFrame or not CharacterFrame
         or not CharacterFrame.LeftPaneHost or not PaperDollFrame.ItemsFrame
+        or not CharacterWristSlot or not CharacterTrinket1Slot
         or InCombatLockdown() then
         return
     end
 
+    -- A mouse-transparent container lets parent hiding close every WSF control.
     controls = CreateFrame("Frame", nil, PaperDollFrame.ItemsFrame)
-    controls:SetSize(2 * BUTTON_WIDTH + GAP, BUTTON_HEIGHT)
-    -- Keep the controls between the side slots and above the bottom weapon slots.
-    controls:SetPoint("BOTTOM", CharacterFrame.LeftPaneHost, "BOTTOM", 0, CONTROLS_BOTTOM_OFFSET)
-    controls.save = CreateButton(controls, "WSF Save")
-    controls.save:SetPoint("TOPLEFT")
-    controls.equip = CreateButton(controls, "WSF Equip")
-    controls.equip:SetPoint("LEFT", controls.save, "RIGHT", GAP, 0)
+    controls:SetAllPoints(PaperDollFrame.ItemsFrame)
+    -- Wrist and Trinket1 are the last slots in the left and right columns.
+    controls.save = CreateIconButton(SAVE_ICON, CharacterWristSlot)
+    controls.equip = CreateIconButton(EQUIP_ICON, CharacterTrinket1Slot)
     CreateSelection()
     CreateSaveDialog()
 
