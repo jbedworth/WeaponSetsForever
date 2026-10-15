@@ -192,9 +192,11 @@ outfit management, frameworks, or speculative features without agreement.
   Do not use the singular `Weapon Set Forever`.
 - Keep the author-approved icon-only Save and Equip buttons: 28x28, gold-bordered,
   anchored 6 pixels beneath `CharacterWristSlot` (Save) and `CharacterTrinket1Slot`
-  (Equip), the last slots in each column, with their existing tooltips. They
-  replaced centered text buttons that overlapped stat text drawn by other
-  AddOns. Save shows the logo-derived Textures/SaveIcon.tga; Equip uses the
+  (Equip), the last slots in each column, aligned to each column's outer edge
+  (Save left, Equip right) so stat text beside the ranged slot stays visible.
+  Tooltips open toward the paper doll: Save `ANCHOR_RIGHT`, Equip `ANCHOR_LEFT`,
+  so neither covers the stats pane. They replaced centered text buttons that
+  overlapped stat text drawn by other AddOns. Save shows the logo-derived Textures/SaveIcon.tga; Equip uses the
   built-in INV_Sword_04 icon. Add no other runtime assets or dependencies without
   agreement. Regenerate the Save icon with scripts/build_icon.py whenever the
   logo changes; tests require the committed TGA to match the build.

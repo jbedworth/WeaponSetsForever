@@ -1655,17 +1655,19 @@ test("custom dialogs capture headings, native rectangle colors, and button place
     equal(state.controls.mouseEnabled, nil, "container must not intercept slot clicks")
     local icons = {
         {state.saveButton, state.env.CharacterWristSlot,
-            "Interface\\AddOns\\WeaponSetsForever\\Textures\\SaveIcon"},
-        {state.equipButton, state.env.CharacterTrinket1Slot, "Interface\\Icons\\INV_Sword_04"},
+            "Interface\\AddOns\\WeaponSetsForever\\Textures\\SaveIcon", "LEFT"},
+        {state.equipButton, state.env.CharacterTrinket1Slot,
+            "Interface\\Icons\\INV_Sword_04", "RIGHT"},
     }
     for _, case in ipairs(icons) do
-        local button, slot, icon = case[1], case[2], case[3]
+        local button, slot, icon, side = case[1], case[2], case[3], case[4]
         equal(button.kind, "Button")
         equal(button.template, nil, "icon buttons use no text template")
         equal(button.text, "", "icon buttons have no label")
         equal(button.width, 28)
         equal(button.height, 28)
-        same(button.points, {{"TOP", slot, "BOTTOM", 0, -6}})
+        same(button.points, {{"TOP" .. side, slot, "BOTTOM" .. side, 0, -6}},
+            "aligned to the outer edge of its slot column")
         equal(button.icon.texturePath, icon)
         equal(button.icon.layer, "ARTWORK")
         same(button.icon.points, {{"TOPLEFT", 1, -1}, {"BOTTOMRIGHT", -1, 1}})
@@ -1845,6 +1847,8 @@ test("control and row tooltips show and hide with combat-specific save warning",
     state.fire(state.saveButton, "OnLeave")
     equal(tooltip:IsShown(), false)
     state.fire(state.equipButton, "OnEnter")
+    equal(tooltip.owner, state.equipButton)
+    equal(tooltip.anchor, "ANCHOR_LEFT", "opens up and left, inside the paper doll")
     equal(tooltip.text, "WSF: Equip weapons")
     equal(#tooltip.lines, 1, "no combat save warning for equip")
     equal(tooltip.lines[1][1], "Equip a weapon set outside combat. Use native /equipset macros in combat.")

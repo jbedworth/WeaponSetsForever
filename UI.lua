@@ -152,12 +152,13 @@ local function CreateButton(parent, text, width)
     return button
 end
 
--- Icon-only buttons sit beneath a side slot column, clear of text that other
--- AddOns draw beside the slots and weapon row.
-local function CreateIconButton(icon, slot)
+-- Icon-only buttons sit beneath a side slot column, aligned to its outer edge
+-- ("LEFT" or "RIGHT"), clear of text that other AddOns draw beside the slots
+-- and weapon row.
+local function CreateIconButton(icon, slot, side)
     local button = CreateFrame("Button", nil, controls)
     button:SetSize(ICON_BUTTON_SIZE, ICON_BUTTON_SIZE)
-    button:SetPoint("TOP", slot, "BOTTOM", 0, -GAP)
+    button:SetPoint("TOP" .. side, slot, "BOTTOM" .. side, 0, -GAP)
     StylePanel(button)
     button.icon = button:CreateTexture(nil, "ARTWORK")
     button.icon:SetPoint("TOPLEFT", 1, -1)
@@ -216,9 +217,10 @@ local function CreateSaveDialog()
     end)
 end
 
-local function SetTooltip(button, title, description, saving)
+-- Each anchor opens the tooltip toward the paper doll, away from the stats pane.
+local function SetTooltip(button, anchor, title, description, saving)
     button:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetOwner(self, anchor)
         GameTooltip:SetText(title)
         GameTooltip:AddLine(description, 1, 1, 1, true)
         if not WSF.available then
@@ -352,8 +354,8 @@ local function Initialize()
     controls = CreateFrame("Frame", nil, PaperDollFrame.ItemsFrame)
     controls:SetAllPoints(PaperDollFrame.ItemsFrame)
     -- Wrist and Trinket1 are the last slots in the left and right columns.
-    controls.save = CreateIconButton(SAVE_ICON, CharacterWristSlot)
-    controls.equip = CreateIconButton(EQUIP_ICON, CharacterTrinket1Slot)
+    controls.save = CreateIconButton(SAVE_ICON, CharacterWristSlot, "LEFT")
+    controls.equip = CreateIconButton(EQUIP_ICON, CharacterTrinket1Slot, "RIGHT")
     CreateSelection()
     CreateSaveDialog()
 
@@ -378,8 +380,8 @@ local function Initialize()
             selection:Show()
         end
     end)
-    SetTooltip(controls.save, "WSF: Save weapons", "Save current weapons by name. An existing native set with that name is overwritten, regardless of creator.", true)
-    SetTooltip(controls.equip, "WSF: Equip weapons", "Equip a weapon set outside combat. Use native /equipset macros in combat.")
+    SetTooltip(controls.save, "ANCHOR_RIGHT", "WSF: Save weapons", "Save current weapons by name. An existing native set with that name is overwritten, regardless of creator.", true)
+    SetTooltip(controls.equip, "ANCHOR_LEFT", "WSF: Equip weapons", "Equip a weapon set outside combat. Use native /equipset macros in combat.")
     controls:SetScript("OnShow", UpdateAvailability)
     controls:SetScript("OnHide", function()
         selection:Hide()

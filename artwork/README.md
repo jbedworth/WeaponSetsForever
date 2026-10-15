@@ -7,6 +7,14 @@ background. The design has no font or external-image dependencies.
 - `weapon-sets-forever-logo.png`: 1024 x 1024 PNG master.
 - `weapon-sets-forever-logo-512.png`: 512 x 512 PNG for square project images.
 
+`screenshots/` holds in-client PNG captures for project pages:
+
+- `save-panel.png`: the Save panel with a set name entered.
+- `equip-list.png`: the Equip list of saved sets.
+- `equip-tooltip.png`: the Character panel with the Equip tooltip.
+- `native-equipment-manager.png`: WSF sets in Blizzard's Equipment Manager,
+  with non-weapon slots ignored.
+
 Use these files for project pages and distribution branding. Keep this directory
 out of the runtime release ZIP. The Save button icon, `Textures/SaveIcon.tga`, is
 generated from `weapon-sets-forever-logo-512.png` by `scripts/build_icon.py`;
