@@ -116,10 +116,14 @@ reports `1.60.1.70338`.
   down to `CharacterWristSlot`, and the right column from `CharacterHandsSlot`
   down to `CharacterTrinket1Slot`, with 6-pixel gaps.
 
-WSF places a 28x28 icon-only Save button 6 pixels beneath `CharacterWristSlot`
-and an Equip button 6 pixels beneath `CharacterTrinket1Slot`. Stat AddOns
-commonly draw text beside the slots and the weapon row, and the earlier centered
-text buttons covered that text; the space beneath each column is outside it.
+WSF places a 28x28 icon-only Save button 6 pixels beneath `CharacterWristSlot`,
+left-aligned with it, and an Equip button 6 pixels beneath
+`CharacterTrinket1Slot`, right-aligned with it. Stat AddOns commonly draw text
+beside the slots and the weapon row, and the earlier centered text buttons
+covered that text; the space beneath each column is outside it. Centered under
+the slot, Equip clipped a "1.0 Dps" label beside the ranged slot; outer-edge
+alignment clears it. Save's tooltip uses `ANCHOR_RIGHT` and Equip's
+`ANCHOR_LEFT`, so both open over the paper doll rather than the stats pane.
 Save shows `Textures/SaveIcon.tga`, a 64 x 64 crop of the logo emblem built
 by `scripts/build_icon.py`; Equip shows the built-in `INV_Sword_04` icon. Both
 use the `ButtonHilight-Square` highlight. Both panels open centered at bottom y=124 in
