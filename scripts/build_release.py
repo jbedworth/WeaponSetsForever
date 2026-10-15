@@ -235,8 +235,35 @@ def validate_archive(path, expected_version):
     return _manifest(version, archive_filename(version), digest)
 
 
-def _release_notes(version):
+CHANGELOG_NAME = "CHANGELOG.md"
+
+
+def changelog_section(text, version):
+    """Return the body of the `## <version>` section; every release needs one."""
+    lines = text.splitlines()
+    heading = "## " + version
+    starts = [index for index, line in enumerate(lines) if line.strip() == heading]
+    if len(starts) != 1:
+        raise ValueError(f"{CHANGELOG_NAME} must have exactly one '{heading}' section")
+    body = []
+    for line in lines[starts[0] + 1:]:
+        if line.startswith("## "):
+            break
+        body.append(line)
+    section = "\n".join(body).strip()
+    if not section:
+        raise ValueError(f"{CHANGELOG_NAME} section '{heading}' is empty")
+    return section
+
+
+def _release_notes(version, changes):
     return f'''# Weapon Sets Forever {version}
+
+## Changes
+
+{changes}
+
+## Notes
 
 - Beta for WoW: Forever. Tested on Forever beta {GAME_VERSION}, build {TARGET_BUILD},
   Interface {INTERFACE}. WSF runs on later beta builds while the client provides
@@ -272,6 +299,11 @@ def build_release(source_root, output, tag=None, github_output=None, source_comm
         files[name] = source.read_bytes()
     version = _validate_files(files)
     tag = validate_tag(tag, version)
+    # Checked before writing anything, so a release can never ship without notes.
+    changelog = source_root / CHANGELOG_NAME
+    if changelog.is_symlink() or not changelog.is_file():
+        raise ValueError(f"Source must be a regular file: {CHANGELOG_NAME}")
+    changes = changelog_section(_text(CHANGELOG_NAME, changelog.read_bytes()), version)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     archive_path = output / archive_filename(version)
@@ -291,7 +323,7 @@ def build_release(source_root, output, tag=None, github_output=None, source_comm
                 f"{manifest['sha256']}  {archive_path.name}\n")
     _write_text(output / "release-manifest.json",
                 json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    _write_text(output / "release-notes.md", _release_notes(version))
+    _write_text(output / "release-notes.md", _release_notes(version, changes))
     _write_text(output / WOWUP_METADATA_NAME,
                 json.dumps(wowup_metadata(version), indent=2) + "\n")
     if github_output is not None:

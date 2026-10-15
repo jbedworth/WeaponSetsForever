@@ -38,6 +38,8 @@ class ProvenanceTests(unittest.TestCase):
         for name in build_release.MEDIA_FILES:
             (source / name).parent.mkdir(parents=True, exist_ok=True)
             (source / name).write_bytes((ROOT / name).read_bytes())
+        (source / build_release.CHANGELOG_NAME).write_text(
+            "## 1.2.3-beta\n\n- Test change.\n", encoding="utf-8", newline="\n")
         self.dist = root / "dist"
         build_release.build_release(source, self.dist, TAG, source_commit=COMMIT)
 
