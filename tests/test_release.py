@@ -44,6 +44,8 @@ class ReleaseTests(unittest.TestCase):
         for name in builder.MEDIA_FILES:
             (self.source / name).parent.mkdir(parents=True, exist_ok=True)
             (self.source / name).write_bytes((ROOT / name).read_bytes())
+        (self.source / builder.CHANGELOG_NAME).write_bytes(
+            (ROOT / builder.CHANGELOG_NAME).read_bytes().replace(b"\r\n", b"\n"))
         self.version = builder._validate_files(self.files())
         self.output = self.base / "dist"
 
@@ -157,6 +159,8 @@ class ReleaseTests(unittest.TestCase):
                 toc = (ROOT / "WeaponSetsForever.toc").read_bytes().replace(b"\r\n", b"\n")
                 toc = toc.replace(self.version.encode(), version.encode())
                 (self.source / "WeaponSetsForever.toc").write_bytes(toc)
+                (self.source / builder.CHANGELOG_NAME).write_bytes(
+                    f"## {version}\n\n- Test change.\n".encode("utf-8"))
                 path, manifest = self.build(tag="v" + version)
                 self.assertEqual(manifest["channel"], channel)
                 self.assertEqual(manifest["prerelease"], channel != "release")
@@ -258,6 +262,47 @@ class ReleaseTests(unittest.TestCase):
         path, _ = self.build()
         with zipfile.ZipFile(path) as archive:
             self.assertIn("WeaponSetsForever/Textures/SaveIcon.tga", archive.namelist())
+
+    def test_release_notes_start_with_the_versions_changelog_section(self):
+        changelog = self.source / builder.CHANGELOG_NAME
+        changelog.write_text(
+            "# Changelog\n\n## " + self.version + "\n\n- Fixed the thing.\n- Added the other.\n\n"
+            "## 0.0.1-beta\n\n- Older entry.\n", encoding="utf-8", newline="\n")
+        self.build()
+        notes = (self.output / "release-notes.md").read_text(encoding="utf-8")
+        self.assertTrue(notes.startswith(
+            f"# Weapon Sets Forever {self.version}\n\n## Changes\n\n"
+            "- Fixed the thing.\n- Added the other.\n\n## Notes\n\n- Beta for WoW: Forever."))
+        self.assertNotIn("Older entry", notes)
+
+    def test_build_refuses_missing_empty_or_duplicate_changelog_section(self):
+        changelog = self.source / builder.CHANGELOG_NAME
+        heading = "## " + self.version
+        cases = (
+            None, "", "# Changelog\n",
+            "# Changelog\n\n## 9.9.9-beta\n\n- Other version.\n",
+            f"# Changelog\n\n{heading}\n\n\n## 0.0.1-beta\n\n- Older.\n",
+            f"{heading}\n\n- One.\n\n{heading}\n\n- Two.\n",
+            f"{heading}\r\n\r\n- CRLF.\r\n",
+        )
+        for text in cases:
+            with self.subTest(text=text):
+                if changelog.exists():
+                    changelog.unlink()
+                if text is not None:
+                    changelog.write_bytes(text.encode("utf-8"))
+                with self.assertRaises(ValueError):
+                    self.build()
+                self.assertFalse(self.output.exists(), "nothing is written without notes")
+
+    def test_changelog_never_enters_the_package(self):
+        path, _ = self.build()
+        with zipfile.ZipFile(path) as archive:
+            self.assertNotIn("WeaponSetsForever/CHANGELOG.md", archive.namelist())
+
+    def test_repository_changelog_has_the_toc_version(self):
+        text = (ROOT / builder.CHANGELOG_NAME).read_text(encoding="utf-8")
+        self.assertTrue(builder.changelog_section(text, self.version))
 
     def test_license_terms_and_copyright(self):
         for before, after in ((b"John Bedworth", b"Someone Else"), (b"2026", b"2025"),

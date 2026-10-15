@@ -299,6 +299,10 @@ outfit management, frameworks, or speculative features without agreement.
   1.60.1/type 88568, refuses redirects, never retries POST, and retains receipts.
   The workflow permits CurseForge only on the first run attempt. Do not blindly
   rerun, replace existing releases, or create conflicting uploads.
+- Every release needs a `## <version>` section in CHANGELOG.md with
+  player-facing changes. The builder puts it at the top of release-notes.md
+  (the GitHub release notes and CurseForge changelog) and fails without it.
+  CHANGELOG.md is a release record and never enters the package.
 - scripts/build_release.py creates deterministic ZIP bytes for the same inputs/
   toolchain plus checksum, manifest, and notes outside the ZIP. Optional
   --source-commit records a real full SHA (GITHUB_SHA in CI), not proof derived

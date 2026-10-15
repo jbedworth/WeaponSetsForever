@@ -51,6 +51,8 @@ class CurseForgeTests(unittest.TestCase):
         for name in builder.MEDIA_FILES:
             (source / name).parent.mkdir(parents=True, exist_ok=True)
             (source / name).write_bytes((ROOT / name).read_bytes())
+        (source / builder.CHANGELOG_NAME).write_bytes(
+            f"## {version}\n\n- Test change.\n".encode("utf-8"))
         self.dist = self.base / "dist"
         self.tag = "v" + version
         self.manifest = builder.build_release(source, self.dist, tag=self.tag)

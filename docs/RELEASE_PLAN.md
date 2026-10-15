@@ -92,7 +92,8 @@ TOC/version/license and actual archive, and writes to `dist/`:
 - `WeaponSetsForever-<version>-forever.zip`;
 - the adjacent `.zip.sha256` checksum;
 - `release-manifest.json`;
-- `release-notes.md`;
+- `release-notes.md`: the `CHANGELOG.md` section for the version, then the
+  standing beta notes;
 - `release.json`, BigWigs-format WowUp metadata naming the ZIP with flavor
   `forever` and Interface `16001`.
 
@@ -256,7 +257,11 @@ broader version label.
 
 ### Later releases
 
-1. Update code, TOC version, and release notes; run the checks above.
+1. Update code and the TOC version, and add a `## <version>` section to
+   `CHANGELOG.md` listing the player-facing changes; run the checks above.
+   The builder puts that section at the top of `release-notes.md`, which
+   becomes both the GitHub release notes and the CurseForge changelog, and it
+   fails the build if the section is missing or empty.
 2. Review and commit the change.
 3. Push the authorized version tag.
 4. Let CI test, package, validate, and publish to the enabled destinations.
