@@ -2,7 +2,7 @@
 
 Save and restore named weapon configurations in World of Warcraft: Forever.
 Weapon Sets Forever uses WoW's native per-character equipment sets. It is small,
-has no runtime dependencies, and does not use SavedVariables.
+needs no other AddOn to work, and does not use SavedVariables.
 
 ## Purpose
 
@@ -193,8 +193,10 @@ The TOC loads Commands, Equipment, Core, then UI. It declares no SavedVariables.
 With Dyre's Toolkit installed, the in-game AddOn list shows it under Dyre's
 Toolkit. Without the toolkit, it shows under **Bags & Inventory**, the same
 text as its CurseForge category (the AddOn list groups AddOns by exact
-category text). It does not need the toolkit to work. It uses Blizzard's
-built-in `INV_Sword_04` icon.
+category text). It does not need the toolkit to work. On CurseForge, Dyre's
+Toolkit is a required dependency, so the CurseForge app installs it, and
+Weapon Skills Forever is an optional dependency. It uses Blizzard's built-in
+`INV_Sword_04` icon.
 
 Do not install `.tools/`, tests, artwork, or agent guidance as runtime files.
 Include `LICENSE` when distributing copies. Restart the client after installing

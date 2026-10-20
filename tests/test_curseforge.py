@@ -154,7 +154,11 @@ class CurseForgeTests(unittest.TestCase):
                          ["metadata", "file"])
         metadata = json.loads(parts[0].get_payload(decode=True))
         self.assertEqual(metadata, {"gameVersions": [12345], "releaseType": "beta",
-                                   "changelog": notes, "changelogType": "markdown"})
+                                   "changelog": notes, "changelogType": "markdown",
+                                   "relations": {"projects": [
+                                       {"slug": "dyres-toolkit", "type": "requiredDependency"},
+                                       {"slug": "weapon-skills-forever", "projectID": 1746649,
+                                        "type": "optionalDependency"}]}})
         self.assertEqual(parts[1].get_filename(), self.archive.name)
         self.assertEqual(parts[1].get_content_type(), "application/zip")
         uploaded = parts[1].get_payload(decode=True)
@@ -187,6 +191,16 @@ class CurseForgeTests(unittest.TestCase):
                 with self.assertRaises(publisher.PublishError):
                     self.publish()
                 self.assert_no_network()
+
+    def test_toolkit_required_and_weapon_skills_optional(self):
+        # A required Weapon Skills Forever would make CurseForge install it for every player.
+        projects = publisher.RELATIONS["projects"]
+        self.assertTrue(projects)
+        types = {p["slug"]: p["type"] for p in projects}
+        self.assertEqual(types, {"dyres-toolkit": "requiredDependency",
+                                 "weapon-skills-forever": "optionalDependency"})
+        ids = {p["slug"]: p.get("projectID") for p in projects}
+        self.assertEqual(ids["weapon-skills-forever"], 1746649)
 
     def test_strict_tag(self):
         for tag in ("0.1.0-beta", "v0.1.0", "vv0.1.0-beta", "v0.1.0-beta\n", "v../bad"):

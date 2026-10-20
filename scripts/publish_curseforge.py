@@ -27,6 +27,10 @@ FOREVER_TYPE_ID = 88568
 TIMEOUT = 30
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 RECEIPT_NAME = "curseforge-upload.json"
+# Never send an empty list: CurseForge answers HTTP 400 to {"projects": []}.
+RELATIONS = {"projects": [{"slug": "dyres-toolkit", "type": "requiredDependency"},
+                          {"slug": "weapon-skills-forever", "projectID": 1746649,
+                           "type": "optionalDependency"}]}
 
 
 class PublishError(Exception):
@@ -218,7 +222,7 @@ def publish(artifact_dir, project_id, game_version_id, tag):
     versions = request_json(opener, urllib.request.Request(VERSIONS_URL, headers=headers))
     verify_server_version(versions, game_version_id)
     metadata = {"gameVersions": [game_version_id], "releaseType": manifest["channel"],
-                "changelog": changelog, "changelogType": "markdown"}
+                "changelog": changelog, "changelogType": "markdown", "relations": RELATIONS}
     body, content_type = multipart(metadata, manifest["archive_name"], archive_bytes)
     upload_headers = dict(headers, **{"Content-Type": content_type})
     request = urllib.request.Request(UPLOAD_URL.format(project_id=project_id),

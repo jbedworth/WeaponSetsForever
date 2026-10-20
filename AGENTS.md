@@ -67,9 +67,12 @@ outfit management, frameworks, or speculative features without agreement.
   mode, minimap menu, and settings home. WSF has no movable frame, settings
   page, or saved variables, so it joins only the AddOn list:
   `## Group: DyresToolkit` nests it under the toolkit there. `## Category`
-  then matters only when the toolkit is missing. WSF does not use or need the
-  toolkit: no `## OptionalDeps`, no CurseForge required dependency, and no
-  login line about it. Revisit this if WSF gets a frame or settings.
+  then matters only when the toolkit is missing. WSF code does not use the
+  toolkit: no `## OptionalDeps` (add it only when the code joins the
+  toolkit; author has not decided) and no login line about it. CurseForge
+  relations (author-set, 2026-10-20): Dyre's Toolkit required, Weapon Skills
+  Forever optional; `RELATIONS` in scripts/publish_curseforge.py sends them,
+  never as an empty list (CurseForge answers HTTP 400).
 - Git origin is git@github.com:jbedworth/WeaponSetsForever.git. Always inspect
   current Git state before acting, and preserve user work.
 - Text is LF under .gitattributes (* text=auto eol=lf; PNG/JPG/GIF/WebP/ZIP

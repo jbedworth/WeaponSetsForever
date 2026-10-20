@@ -2,7 +2,7 @@
 ## Title: Weapon Sets Forever
 ## Notes: Save native weapon-only equipment sets for WOW Forever
 ## Author: Dyre
-## Version: 0.1.2-beta
+## Version: 1.0.0
 ## IconTexture: Interface\Icons\INV_Sword_04
 ## Category: Bags & Inventory
 ## Group: DyresToolkit
