@@ -421,6 +421,97 @@ test("slash save reports core save failure exactly once", function()
     onlyFailure(state, "combat")
 end)
 
+-- Plain /wsf, help, and unknown words print one line naming every command.
+local USAGE_LINE = 'WSF: Use /wsf save Name (or /wsf save "Set Name"), /wsf export [Name], '
+    .. "/wsf debug_swap [on|off|status], or /wsf help. /weaponsets works the same."
+for _, input in ipairs({"", "   ", "help", "HELP", " help ", "help save", "set Weapons",
+    "unknown", "saver Name", "/wsf save Name"}) do
+    local message = input
+    test("usage line for " .. string.format("%q", message), function()
+        local state = fixture()
+        noMutation(state, function() state.wsf.HandleCommand(message) end)
+        same(state.messages, {USAGE_LINE})
+    end)
+end
+test("usage line for a non-string message", function()
+    local state = fixture()
+    noMutation(state, function() state.wsf.HandleCommand(nil) end)
+    same(state.messages, {USAGE_LINE})
+end)
+test("usage line fits one chat message", function()
+    equal(#USAGE_LINE <= 255, true)
+end)
+test("malformed save keeps the precise save usage", function()
+    for _, message in ipairs({"save", "save Tank Weapons", 'save "Name'}) do
+        local state = fixture()
+        noMutation(state, function() state.wsf.HandleCommand(message) end)
+        same(state.messages, {'WSF: Use /wsf save Name or /wsf save "Set Name".'})
+    end
+    local state = fixture()
+    noMutation(state, function() state.wsf.HandleCommand('save "' .. string.rep("a", 17) .. '"') end)
+    same(state.messages, {"WSF: Use a set name with at most 16 letters."})
+end)
+test("/weaponsets runs the same handler as /wsf", function()
+    local state = fixture()
+    equal(state.env.SLASH_WEAPONSETSFOREVER1, "/wsf")
+    equal(state.env.SLASH_WEAPONSETSFOREVER2, "/weaponsets")
+    state.env.SlashCmdList.WEAPONSETSFOREVER("save Daggers")
+    assertSnapshot(state, 100)
+    same(state.messages, {"WSF: Saved weapon set: Daggers"})
+end)
+test("WSF never registers /wsk, which belongs to WSK", function()
+    local state = fixture()
+    for key in pairs(state.env.SlashCmdList) do
+        for index = 1, 10 do
+            local alias = state.env["SLASH_" .. key .. index]
+            if type(alias) == "string" then
+                equal(alias:lower() ~= "/wsk", true, "WSF must not use /wsk")
+            end
+        end
+    end
+end)
+local function clashState(aliases)
+    local state = fixture(false)
+    state.env.SlashCmdList.OTHERADDON = function() end
+    for index, alias in ipairs(aliases) do
+        state.env["SLASH_OTHERADDON" .. index] = alias
+    end
+    state.emit("PLAYER_LOGIN")
+    state.takeBanner(true)
+    return state
+end
+test("login reports a /wsf clash once and names /weaponsets", function()
+    local state = clashState({"/WSF"})
+    same(state.messages, {"WSF: Another AddOn (OTHERADDON) also uses /wsf. Use /weaponsets instead."})
+end)
+test("login reports a /weaponsets clash and names /wsf", function()
+    local state = clashState({"/other", "/weaponsets"})
+    same(state.messages, {"WSF: Another AddOn (OTHERADDON) also uses /weaponsets. Use /wsf instead."})
+end)
+test("login reports both clashes without advice", function()
+    local state = clashState({"/wsf", "/weaponsets"})
+    same(state.messages, {"WSF: Another AddOn (OTHERADDON) also uses /wsf.",
+        "WSF: Another AddOn (OTHERADDON) also uses /weaponsets."})
+end)
+test("login says nothing about /wsk or other commands", function()
+    local state = clashState({"/wsk", "/weaponskills", "/wsfx"})
+    same(state.messages, {})
+end)
+test("clash report also runs when WSF is unavailable", function()
+    local state = fixture(false)
+    state.capable = false
+    state.env.SlashCmdList.OTHERADDON = function() end
+    state.env.SLASH_OTHERADDON1 = "/wsf"
+    state.emit("PLAYER_LOGIN")
+    local found = false
+    for _, text in ipairs(state.messages) do
+        if text == "WSF: Another AddOn (OTHERADDON) also uses /wsf. Use /weaponsets instead." then
+            found = true
+        end
+    end
+    equal(found, true, "clash line")
+end)
+
 local requiredAPIs = {
     "CanUseEquipmentSets", "GetEquipmentSetID", "GetEquipmentSetIDs",
     "GetEquipmentSetInfo", "GetNumEquipmentSets", "GetIgnoredSlots", "GetItemIDs",
@@ -2480,8 +2571,8 @@ test("source retains native slash ownership without custom combat macro or queue
     contains(commands, 'command ~= "save"')
     equal(commands:find("equipset", 1, true), nil, "save parser must not parse native equipset")
     local core = source("Core.lua")
-    contains(core, 'SLASH_WEAPONSETSFOREVER1 = "/wsf"')
-    contains(core, 'SlashCmdList["WEAPONSETSFOREVER"] = WSF.HandleCommand')
+    contains(core, 'SLASH_ALIASES = {"/wsf", "/weaponsets"}')
+    contains(core, "SlashCmdList[SLASH_KEY] = WSF.HandleCommand")
     equal(core:find("PLAYER_REGEN_ENABLED", 1, true), nil, "no core combat-exit equip queue")
     local equipment = source("Equipment.lua")
     equal(equipment:find("PLAYER_REGEN_ENABLED", 1, true), nil, "no equipment combat-exit queue")
@@ -2495,9 +2586,10 @@ test("source retains native slash ownership without custom combat macro or queue
     end
     local state = fixture()
     equal(state.env.SLASH_WEAPONSETSFOREVER1, "/wsf")
-    equal(state.env.SLASH_WEAPONSETSFOREVER2, nil)
+    equal(state.env.SLASH_WEAPONSETSFOREVER2, "/weaponsets")
+    equal(state.env.SLASH_WEAPONSETSFOREVER3, nil)
     for name in pairs(state.env.SlashCmdList) do
-        equal(name, "WEAPONSETSFOREVER", "only the save command is registered")
+        equal(name, "WEAPONSETSFOREVER", "only the WSF command key is registered")
     end
     noMutation(state, function() state.wsf.HandleCommand("set Weapons") end)
     onlyFailure(state, "Use /wsf save")

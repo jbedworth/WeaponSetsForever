@@ -42,6 +42,7 @@ Sets are native WoW equipment sets: they persist per character without AddOn sto
 - Native `/equipset` for command and macro swaps.
 - Keeps intentionally empty weapon slots, including shields and held off-hand items.
 - `/wsf export` prints your equipped item IDs by slot, or a saved set, as JSON.
+- `/wsf` or `/wsf help` lists every command. `/weaponsets` works the same, in case another AddOn uses `/wsf`.
 - No SavedVariables. It needs no other AddOn to work; CurseForge installs Dyre's Toolkit with it, which lists it with the other Dyre's AddOns.
 
 ### Combat

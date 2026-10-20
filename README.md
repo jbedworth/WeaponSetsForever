@@ -60,6 +60,11 @@ blocks UI equipping. Combat entry closes the save panel, not the equip list.
 
 ### Commands and names
 
+`/wsf`, `/wsf help`, or any unknown word shows one line that lists every
+command. `/weaponsets` is a backup command that works the same as `/wsf`. If
+another AddOn also uses `/wsf` or `/weaponsets`, WSF says so once at login and
+names the other command to use.
+
 ```text
 /wsf save Daggers
 /wsf save "Tank Weapons"
@@ -206,9 +211,9 @@ the AddOn or changing TOC metadata.
 
 | File | Responsibility |
 | --- | --- |
-| `Commands.lua` | Strict save-command parsing and shared name validation. |
+| `Commands.lua` | Command dispatch and usage, strict save-command parsing, and shared name validation. |
 | `Equipment.lua` | Capability checks, native snapshots, shared flags, set validation, and equip preconditions. |
-| `Core.lua` | Slash registration, login availability, equip state and completion feedback. |
+| `Core.lua` | Slash registration and clash report, login availability, equip state and completion feedback. |
 | `UI.lua` | Character-panel buttons and custom save/equip panels. |
 | `tests/run.lua` | Isolated Lua 5.1 tests with WoW API mocks. |
 | `scripts/` | Standard-library Python release builder, provenance verifier, CurseForge uploader and read-only version lookup, and icon builder; no runtime dependencies. |

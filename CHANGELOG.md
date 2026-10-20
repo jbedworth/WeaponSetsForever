@@ -4,6 +4,14 @@ Player-facing changes for each Weapon Sets Forever release, newest first. The
 release builder copies the section for the TOC version into the GitHub release
 notes and the CurseForge changelog, and fails if that section is missing.
 
+## 1.1.0
+
+### Features
+
+- `/wsf`, `/wsf help`, and any unknown word now show one line that lists every command, the same as Dyre's other AddOns. Before, they showed only how to save a set. A malformed `/wsf save` still says exactly what is wrong.
+- New backup command `/weaponsets`. It works the same as `/wsf`, so you can still use WSF when another AddOn takes `/wsf`.
+- If another AddOn also uses `/wsf` or `/weaponsets`, WSF says so once at login and names the other command to use.
+
 ## 1.0.0
 
 The first full release for WoW: Forever, no longer marked beta: it was play tested on the Forever beta client 1.60.1, build 70450. CurseForge now offers it as a release, so the app updates it and installs what it needs for every player.

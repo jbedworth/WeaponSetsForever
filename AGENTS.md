@@ -34,6 +34,17 @@ Native `/equipset` has its own parser. Do not apply save-parser rules to it.
 Reject missing/empty names, unmatched or malformed quotes, and extra arguments before mutation;
 never silently truncate an unquoted multi-word name to its first word.
 
+Commands (author-approved, 1.1.0, as Dyre's other AddOns): plain `/wsf`,
+`/wsf help`, and any unknown word print one usage line naming every
+command (`save`, `export`, `debug_swap`, `help`; `debug_probe` stays an
+unlisted alias). A malformed `/wsf save` keeps its precise save errors.
+`/wsf` stays the primary command (author); `/weaponsets` is the backup
+(`SLASH_WEAPONSETSFOREVER2`, same handler). At login, Core reports once
+each alias another AddOn also registers and names the other one to use
+(the `SLASH_<KEY><n>` scan, `MAX_SLASH_ALIASES`, as DQT, DSU, and WSK do).
+Never register `/wsk` or `/weaponskills`: they belong to Weapon Skills
+Forever (WSK).
+
 Keep this narrow feature set. Do not add automatic switching, general
 outfit management, frameworks, or speculative features without agreement.
 
@@ -312,7 +323,10 @@ outfit management, frameworks, or speculative features without agreement.
   The workflow permits CurseForge only on the first run attempt. Do not blindly
   rerun, replace existing releases, or create conflicting uploads.
 - Every release needs a `## <version>` section in CHANGELOG.md with
-  player-facing changes. The builder puts it at the top of release-notes.md
+  player-facing changes. Under it, use `### Features`, `### Fixes`, and
+  `### Other changes`, in that order, with descriptive player-facing bullets,
+  and leave out any empty subsection (family rule, author). The builder stops
+  the section only at the next `## `, so `###` headings stay in it. The builder puts it at the top of release-notes.md
   (the GitHub release notes and CurseForge changelog) and fails without it.
   CHANGELOG.md is a release record and never enters the package.
 - scripts/build_release.py creates deterministic ZIP bytes for the same inputs/

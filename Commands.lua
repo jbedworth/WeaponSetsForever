@@ -2,6 +2,9 @@ local _, WSF = ...
 
 local MAX_NAME_LETTERS = 16
 local SAVE_USAGE = 'Use /wsf save Name or /wsf save "Set Name".'
+-- One line for plain /wsf, help, and unknown words, as Dyre's other AddOns do.
+local USAGE = 'Use /wsf save Name (or /wsf save "Set Name"), /wsf export [Name], '
+    .. "/wsf debug_swap [on|off|status], or /wsf help. /weaponsets works the same."
 -- "export" is the user-facing name; "debug_probe" is the original diagnostic alias.
 local PROBE_COMMANDS = {export = true, debug_probe = true}
 local PROBE_USAGE = 'Use /wsf %s, /wsf %s Name, or /wsf %s "Set Name".'
@@ -147,6 +150,10 @@ end
 
 function WSF.HandleCommand(message)
     local command = SplitCommand(message)
+    if command ~= "save" and not PROBE_COMMANDS[command] and command ~= SWAP_DEBUG_COMMAND then
+        WSF.Report(USAGE)
+        return
+    end
     if PROBE_COMMANDS[command] then
         HandleProbe(command, message)
         return

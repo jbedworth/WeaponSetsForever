@@ -33,6 +33,10 @@ those change.
 
 - `Commands.lua` validates exactly one save name and counts UTF-8 start bytes
   against a 16-letter limit. Custom save-panel and slash saves use the shared validator.
+  Plain `/wsf`, `help`, and unknown words print one usage line; a malformed
+  `save` keeps its own errors.
+- `Core.lua` registers `/wsf` and `/weaponsets` on one handler and, at login,
+  reports once each alias another AddOn's `SLASH_<KEY><n>` global also uses.
 - `Equipment.lua` checks required APIs/constants and all three slot identities (main 16, off 17, ranged 18). It does not discard
   a slot based on ranged visibility or `IsInventorySlotEnabled`.
 - Save-ignore operations cover equipped slots `1..19` except weapons `16/17/18`.
@@ -388,6 +392,10 @@ Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
 ### Parsing and save safety
 
 - [ ] Test `/wsf save Daggers` and `/wsf save "Tank Weapons"`.
+- [ ] `/wsf`, `/wsf help`, and `/wsf foo` each print one line that lists every
+      command. `/weaponsets help` prints the same line, and
+      `/weaponsets save Daggers` saves. `/wsk` still opens Weapon Skills
+      Forever when it is installed.
 - [ ] Reject missing/empty/whitespace-only names, extra arguments, unmatched
       quotes, malformed adjacent quotes/text, and unquoted multi-word names.
       Check supported argument delimiters. No set may change after rejection.

@@ -209,8 +209,48 @@ function WSF.Equip(id)
     return true
 end
 
-SLASH_WEAPONSETSFOREVER1 = "/wsf"
-SlashCmdList["WEAPONSETSFOREVER"] = WSF.HandleCommand
+-- /wsf stays the primary command (author); /weaponsets is the backup.
+local SLASH_KEY = "WEAPONSETSFOREVER"
+local SLASH_ALIASES = {"/wsf", "/weaponsets"}
+-- Aliases checked per other command key (SLASH_<KEY>1 to this).
+local MAX_SLASH_ALIASES = 10
+
+-- Another AddOn can register the same slash command; the last one loaded
+-- wins. Returns {alias = other command key} for each alias another key uses.
+local function FindSlashConflicts()
+    local conflicts = {}
+    for key in pairs(SlashCmdList) do
+        if key ~= SLASH_KEY then
+            for index = 1, MAX_SLASH_ALIASES do
+                local alias = _G["SLASH_" .. key .. index]
+                if type(alias) == "string" then
+                    for _, ours in ipairs(SLASH_ALIASES) do
+                        if alias:lower() == ours then
+                            conflicts[ours] = key
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return conflicts
+end
+
+local function ReportSlashConflicts()
+    local conflicts = FindSlashConflicts()
+    for index, alias in ipairs(SLASH_ALIASES) do
+        local other = SLASH_ALIASES[3 - index]
+        if conflicts[alias] then
+            local advice = conflicts[other] and "" or (" Use " .. other .. " instead.")
+            WSF.Report("Another AddOn (" .. conflicts[alias] .. ") also uses " .. alias .. "." .. advice)
+        end
+    end
+end
+
+for index, alias in ipairs(SLASH_ALIASES) do
+    _G["SLASH_" .. SLASH_KEY .. index] = alias
+end
+SlashCmdList[SLASH_KEY] = WSF.HandleCommand
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
@@ -229,6 +269,7 @@ events:SetScript("OnEvent", function(self, event, result, setID)
         end
         WSF.available = available
         ReportLoaded(available)
+        ReportSlashConflicts()
         if not available then
             WSF.Report(message)
         end
