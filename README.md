@@ -304,6 +304,10 @@ References: [CurseForge submission guide](https://support.curseforge.com/en/supp
 [WoWUp Hub guide](https://wowup.io/guide/wowup/hub), and
 [BigWigs packager](https://github.com/BigWigsMods/packager).
 
+## Support
+
+Dyre's AddOns are free. If you enjoy them, you can support them on Ko-fi: https://ko-fi.com/dyre_janelle
+
 ## License
 
 Code and original project artwork use the [MIT License](LICENSE).

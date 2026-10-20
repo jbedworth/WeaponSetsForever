@@ -18,6 +18,7 @@ tested.
 | Logo | `artwork/weapon-sets-forever-logo-512.png` |
 | Source | https://github.com/jbedworth/WeaponSetsForever |
 | Issues | https://github.com/jbedworth/WeaponSetsForever/issues |
+| Donation | Ko-fi, https://ko-fi.com/dyre_janelle (the project's Donation field) |
 
 ## Summary
 
