@@ -16,7 +16,7 @@ storage, and they work with the game's own `/equipset` command and macros.
 
 ## Compatibility
 
-WSF is tested on the Forever beta, `1.60.1` build `70338`, Interface `16001`,
+WSF is tested on the Forever beta, `1.60.1` build `70450`, Interface `16001`,
 Lua `5.1`. It does not check the client version or build, because beta builds
 change several times a week. Instead it checks at login for the native
 equipment-set APIs, constants, and weapon slot identities it needs, and
@@ -190,9 +190,11 @@ WeaponSetsForever/
 ```
 
 The TOC loads Commands, Equipment, Core, then UI. It declares no SavedVariables.
-Its in-game AddOn category is **Bags & Inventory**, the same text as its
-CurseForge category, and it uses Blizzard's built-in `INV_Sword_04` icon. The
-AddOn list groups AddOns by exact category text.
+With Dyre's Toolkit installed, the in-game AddOn list shows it under Dyre's
+Toolkit. Without the toolkit, it shows under **Bags & Inventory**, the same
+text as its CurseForge category (the AddOn list groups AddOns by exact
+category text). It does not need the toolkit to work. It uses Blizzard's
+built-in `INV_Sword_04` icon.
 
 Do not install `.tools/`, tests, artwork, or agent guidance as runtime files.
 Include `LICENSE` when distributing copies. Restart the client after installing
@@ -267,7 +269,8 @@ build, so rerun the script whenever the logo changes.
 
 Client source review is pinned to Gethe/wow-ui-source commit
 [`943764493e6b16d63ded3ab304150d1f05e58b57`](https://github.com/Gethe/wow-ui-source/tree/943764493e6b16d63ded3ab304150d1f05e58b57),
-whose `version.txt` identifies `1.60.1.70338`.
+whose `version.txt` identifies `1.60.1.70338`. The client is tested on build
+`70450`.
 
 ## Artwork and publishing
 

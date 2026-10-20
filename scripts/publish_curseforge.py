@@ -108,8 +108,8 @@ def load_artifact(artifact_dir, tag):
         if type(supplied) is not type(value) or supplied != value:
             raise PublishError(f"Release manifest {key} mismatch")
     if (verified["interface"] != 16001 or verified["game_version"] != "1.60.1"
-            or verified["target_build"] != 70338):
-        raise PublishError("Only Forever beta 1.60.1 / Interface 16001 / build 70338 is supported")
+            or verified["target_build"] != 70450):
+        raise PublishError("Only Forever beta 1.60.1 / Interface 16001 / build 70450 is supported")
     # Upload the held bytes, not a later read of a possibly replaced artifact.
     digest = hashlib.sha256(archive_bytes).hexdigest()
     if digest != verified["sha256"]:

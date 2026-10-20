@@ -239,8 +239,9 @@ Do not use a blind workflow rerun as a recovery procedure. See
       Do not substitute Retail, Classic, a nearby version, or an untested build.
 - [ ] Add the [512-pixel logo](../artwork/weapon-sets-forever-logo-512.png),
       repository link, and issue-tracker link.
-- [ ] Choose relevant distribution categories. The TOC's `Equipment` category
-      controls the in-game list, not the site's category.
+- [ ] Choose relevant distribution categories. Keep the main category
+      identical to the TOC's `Bags & Inventory` category, which groups the
+      AddOn in the in-game list when Dyre's Toolkit is missing.
 - [ ] Capture the Character buttons, Save panel, and Equip list. Crop unrelated
       chat and player information.
 - [ ] Set a GitHub social-preview image. WoWUp's Hub guide uses that image, with

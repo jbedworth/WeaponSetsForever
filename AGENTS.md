@@ -62,6 +62,14 @@ outfit management, frameworks, or speculative features without agreement.
 - The TOC uses the built-in INV_Sword_04 icon and `## Category: Bags & Inventory`,
   the author-selected text matching the CurseForge category. The pinned
   AddonList.lua groups AddOns by exact category string; keep the two identical.
+- Dyre's Toolkit (`DyresToolkit`, its own repository, owned by the
+  coordinating session; do not edit it here) gives Dyre's AddOns one layout
+  mode, minimap menu, and settings home. WSF has no movable frame, settings
+  page, or saved variables, so it joins only the AddOn list:
+  `## Group: DyresToolkit` nests it under the toolkit there. `## Category`
+  then matters only when the toolkit is missing. WSF does not use or need the
+  toolkit: no `## OptionalDeps`, no CurseForge required dependency, and no
+  login line about it. Revisit this if WSF gets a frame or settings.
 - Git origin is git@github.com:jbedworth/WeaponSetsForever.git. Always inspect
   current Git state before acting, and preserve user work.
 - Text is LF under .gitattributes (* text=auto eol=lf; PNG/JPG/GIF/WebP/ZIP
@@ -71,14 +79,15 @@ outfit management, frameworks, or speculative features without agreement.
 ## Client and API verification
 
 - Use Blizzard's in-game AddOn API, not the Battle.net web API.
-- The development target is Forever beta 1.60.1, build 70338, Interface 16001,
+- The development target is Forever beta 1.60.1, build 70450, Interface 16001,
   Lua 5.1, with native equipment-set creation, ignore-slot, and equip functions.
   Reverify before supporting launch or any other client.
 - Preserve the verified API boundary. Verify client build, Lua runtime,
   Interface/TOC version, slot identities, and affected UI/API behavior before
   adding support for another client or changing client-dependent code.
 - Pin source review to Gethe/wow-ui-source commit
-  `943764493e6b16d63ded3ab304150d1f05e58b57`, version `1.60.1.70338`.
+  `943764493e6b16d63ded3ab304150d1f05e58b57`, version `1.60.1.70338` (the
+  70338 source; the client is tested on build 70450).
   Record source findings and unresolved behavior in TESTING.md.
 - Do not gate the runtime on client version, build, or Interface: the author
   dropped that check because Forever beta builds ship several times a week.

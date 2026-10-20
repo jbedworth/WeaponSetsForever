@@ -10,8 +10,9 @@ tested.
 | --- | --- |
 | Name | Weapon Sets Forever |
 | Class | Addons |
-| Main category | Choose the closest to weapon or equipment swapping, such as Bags & Inventory; confirm against the form's current list. |
-| Additional categories | None, or only directly related ones; unrelated categories can send the project back for changes. |
+| Main category | Bags & Inventory. Keep it identical to the TOC `## Category`, which groups the AddOn in the in-game AddOn list. |
+| Additional categories | Only directly related ones, such as classes that swap weapons; unrelated categories can send the project back for changes. |
+| Author shown | Dyre, the public author name used in the TOC and login banner (set in the CurseForge account's username). |
 | License | MIT License |
 | Logo | `artwork/weapon-sets-forever-logo-512.png` |
 | Source | https://github.com/jbedworth/WeaponSetsForever |
@@ -22,6 +23,12 @@ tested.
 Save and swap named weapon sets (main hand, off hand, ranged) for World of Warcraft: Forever, using native equipment sets.
 
 ## Description
+
+Paste this with the description editor in Markdown mode. Pasted into the rich
+text editor, the headings, bullets, and bold show as raw, escaped markdown.
+
+Per-file changelogs need no manual text: each CI upload uses the version's
+`CHANGELOG.md` section, through `release-notes.md`.
 
 ```markdown
 **Weapon Sets Forever** saves and swaps named weapon loadouts in World of Warcraft: Forever. It stores only your main-hand, off-hand, and ranged slots, so armor, trinkets, and the rest of your gear never change.
@@ -42,13 +49,15 @@ WSF's own Equip button works **out of combat only**. In combat, use native `/equ
     /equipset [noequipped:shield] Shield-Set; DPS-Set
 
 ### Compatibility
-Beta: tested on the Forever beta client 1.60.1, build 70338. WSF keeps working on later beta builds; if a client update removes an API it needs, it disables itself with one chat message.
+Beta: tested on the Forever beta client 1.60.1, build 70450. WSF keeps working on later beta builds; if a client update removes an API it needs, it disables itself with one chat message.
 
 Sets saved by pre-release builds of WSF should be re-saved before combat use.
 
 ### Notes
 - Saving an existing name replaces that set with a weapon-only snapshot.
 - Close Blizzard's Equipment Manager pane before saving.
+
+WowUp users (2.24.0 or later): install from the repository URL; GitHub releases carry the Forever metadata WowUp needs.
 
 Source, issues, and license (MIT): https://github.com/jbedworth/WeaponSetsForever
 ```

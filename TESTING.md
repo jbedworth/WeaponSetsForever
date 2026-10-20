@@ -24,7 +24,7 @@ WSF is verified in three layers, and each proves different things:
 Keep these layers distinct when reporting results. Do not present a source
 finding or a passing mock run as client verification.
 
-Target: Forever beta `1.60.1.70338`, Interface `16001`, Lua `5.1`. Core does
+Target: Forever beta `1.60.1.70450`, Interface `16001`, Lua `5.1`. Core does
 not gate on client version, build, or Interface; it gates only on the required
 APIs, constants, and slot identities, so later beta builds keep working unless
 those change.
@@ -94,7 +94,8 @@ those change.
 All links use Gethe/wow-ui-source commit
 `943764493e6b16d63ded3ab304150d1f05e58b57`.
 [`version.txt`](https://github.com/Gethe/wow-ui-source/blob/943764493e6b16d63ded3ab304150d1f05e58b57/version.txt)
-reports `1.60.1.70338`.
+reports `1.60.1.70338`. This is the 70338 source; the client is tested on
+build `70450`.
 
 ### Frames, templates, and placement
 
@@ -346,6 +347,9 @@ Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
 - [ ] Install the TOC and runtime files under
       `Interface/AddOns/WeaponSetsForever/`. Confirm Interface 16001 and load
       order Commands, Equipment, Core, UI.
+- [ ] With Dyre's Toolkit installed, the in-game AddOn list shows Weapon Sets
+      Forever under Dyre's Toolkit. With the toolkit disabled or removed, it
+      shows under Bags & Inventory and works the same.
 - [ ] Verify core runs on the current beta build and rejects missing APIs,
       constants, or slot identities before unsafe operations.
 - [ ] Login and `/reload` with the Character panel closed and open. Confirm

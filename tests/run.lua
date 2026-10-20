@@ -66,7 +66,7 @@ local function fixture(login)
     local state = {
         gear = {}, textures = {}, locks = {}, flags = {}, sets = {}, order = {},
         frames = {}, timers = {}, messages = {}, calls = {}, now = 0, nextID = 100,
-        version = "1.60.1", build = "70338", interface = 16001,
+        version = "1.60.1", build = "70450", interface = 16001,
         capable = true, combat = false, managerVisible = false,
         slots = {MainHandSlot = 16, SecondaryHandSlot = 17, RangedSlot = 18},
     }
@@ -519,8 +519,8 @@ test("login banner falls back without the metadata API or fields", function()
 end)
 -- Beta builds change several times a week; only missing features disable WSF.
 local otherClients = {
-    {"next beta build", function(s) s.build = "70412" end},
-    {"numeric build", function(s) s.build = 70338 end},
+    {"next beta build", function(s) s.build = "70500" end},
+    {"numeric build", function(s) s.build = 70450 end},
     {"patch version", function(s) s.version = "1.60.2" end},
     {"interface", function(s) s.interface = 16002 end},
     {"string interface", function(s) s.interface = "16001" end},
@@ -538,7 +538,7 @@ for _, case in ipairs(otherClients) do
 end
 test("capability accepts numeric beta build and hidden ranged", function()
     local state = fixture(false)
-    state.build = 70338
+    state.build = 70450
     state.emit("PLAYER_LOGIN")
     equal(state.wsf.available, true)
 end)
@@ -2314,7 +2314,7 @@ test("probe prints raw sparse native tables and current gear without mutation", 
     local equipped = '{"kind":"equipped","hex":"0x1000%s","player":true,"bags":false,'
         .. '"bank":false,"bag":0,"slot":%d}'
     local expected = "WSF: debug_probe {"
-        .. '"client":{"version":"1.60.1","build":"70338","interface":16001},'
+        .. '"client":{"version":"1.60.1","build":"70450","interface":16001},'
         .. '"name":"Shield-Set","id":100,"info":{"name":"Shield-Set","iconFileID":"icon",'
         .. '"setID":100,"isEquipped":false,"numItems":null,"numEquipped":null,'
         .. '"numInInventory":null,"numLost":null,"numIgnored":null},'
@@ -2428,7 +2428,7 @@ test("probe without a name reports current gear when no set is equipped", functi
         return state.sets[id].name, "icon", id, 1
     end
     noMutation(state, function() state.wsf.HandleCommand("debug_probe") end)
-    same(state.messages, {'WSF: debug_probe {"client":{"version":"1.60.1","build":"70338",'
+    same(state.messages, {'WSF: debug_probe {"client":{"version":"1.60.1","build":"70450",'
         .. '"interface":16001},"name":null,"id":null,"current":' .. currentGearJSON(state) .. "}"})
 end)
 
