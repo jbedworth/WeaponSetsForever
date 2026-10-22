@@ -38,23 +38,21 @@ Per-file changelogs need no manual text: each CI upload uses the version's
 Sets are native WoW equipment sets: they persist per character without AddOn storage, and they work with the game's own `/equipset` command and macros.
 
 ### Features
-- Save and equip from two small icons in the Character panel, beneath the slot columns.
+- Save and equip from two small icons in the Character panel, beneath the slot columns. Equip opens a list of your sets.
 - `/wsf save Name` or `/wsf save "Set Name"` to save your current weapons.
 - Native `/equipset` for command and macro swaps.
 - Keeps intentionally empty weapon slots, including shields and held off-hand items.
-- `/wsf export` prints your equipped item IDs by slot, or a saved set, as JSON.
+- `/wsf export` or `/wsf export Name` prints a saved set and the item IDs of your current gear, by slot, as JSON.
 - `/wsf` or `/wsf help` lists every command. `/weaponsets` works the same, in case another AddOn uses `/wsf`.
-- No SavedVariables. It needs no other AddOn to work; CurseForge installs Dyre's Toolkit with it, which lists it with the other Dyre's AddOns.
+- No SavedVariables, and it needs no other AddOn to work. CurseForge installs Dyre's Toolkit with it, so the in-game AddOn list shows WSF with the other Dyre's AddOns.
 
 ### Combat
-WSF's own Equip button works **out of combat only**. In combat, use native `/equipset` macros, for example:
+WSF's own Save and Equip buttons work **out of combat only**. In combat, use native `/equipset` macros, for example:
 
     /equipset [noequipped:shield] Shield-Set; DPS-Set
 
 ### Compatibility
-Tested on the Forever beta client 1.60.1, build 70450. WSF keeps working on later beta builds; if a client update removes an API it needs, it disables itself with one chat message.
-
-Sets saved by pre-release builds of WSF should be re-saved before combat use.
+For World of Warcraft: Forever 1.60.1 (tested on build 70450). If a client update removes an API WSF needs, it disables itself with one chat message.
 
 ### Notes
 - Saving an existing name replaces that set with a weapon-only snapshot.
