@@ -25,6 +25,18 @@ local weapons = {}
 local api
 local saving = false
 
+-- Forever has C_PaperDollInfo.GetInventorySlotInfo; Classic Era and
+-- Anniversary have only the older global GetInventorySlotInfo (their
+-- FrameXML's DressUpFrames.lua uses it). Both return the slot ID first.
+function WSF.GetSlotInfoFunction()
+    if type(C_PaperDollInfo) == "table" and type(C_PaperDollInfo.GetInventorySlotInfo) == "function" then
+        return C_PaperDollInfo.GetInventorySlotInfo
+    end
+    if type(GetInventorySlotInfo) == "function" then
+        return GetInventorySlotInfo
+    end
+end
+
 -- Detects the features WSF needs rather than gating on client version or build:
 -- Forever beta builds change several times a week. The TOC Interface line
 -- remains the client's own out-of-date marker.
@@ -37,11 +49,12 @@ function WSF.CheckCapabilities()
             return false, "Required equipment API is missing: " .. name
         end
     end
-    if not C_EquipmentSet.CanUseEquipmentSets() then
-        return false, "Native equipment sets are unavailable for this character."
-    end
-    if type(C_PaperDollInfo) ~= "table"
-        or type(C_PaperDollInfo.GetInventorySlotInfo) ~= "function"
+    -- A note, not a gate (author-approved, 1.2.0): on Classic Era, WeaponRack
+    -- saves and equips sets with these APIs without ever asking. Each save and
+    -- equip still reports its own result.
+    WSF.equipmentSetsReported = C_EquipmentSet.CanUseEquipmentSets() and true or false
+    local GetSlotInfo = WSF.GetSlotInfoFunction()
+    if not GetSlotInfo
         or type(GetInventoryItemID) ~= "function"
         or type(GetInventoryItemTexture) ~= "function"
         or type(IsInventoryItemLocked) ~= "function" then
@@ -54,7 +67,7 @@ function WSF.CheckCapabilities()
     end
     weapons = {}
     for _, slot in ipairs(WEAPON_SLOTS) do
-        local id = C_PaperDollInfo.GetInventorySlotInfo(slot.name)
+        local id = GetSlotInfo(slot.name)
         if id ~= slot.id then
             return false, "Cannot verify weapon slot: " .. slot.name
         end

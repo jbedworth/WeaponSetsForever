@@ -4,6 +4,14 @@ Player-facing changes for each Weapon Sets Forever release, newest first. The
 release builder copies the section for the TOC version into the GitHub release
 notes and the CurseForge changelog, and fails if that section is missing.
 
+## 1.2.0
+
+### Fixes
+
+- WSF no longer turns itself off on clients that have only the older slot lookup (Classic Era and Anniversary). It reads the weapon slots the same way there.
+- WSF no longer turns itself off when the game reports equipment sets as unavailable but has every equipment-set function (seen on Classic Era, where WeaponRack's sets work). It starts with one chat note instead, and each save and equip still says if it worked.
+- On those clients, the Save and Equip icons and their panels now show on the Character panel. Before, they did not show and WSF gave no message. These clients are not yet supported or tested; Forever does not change.
+
 ## 1.1.0
 
 ### Features

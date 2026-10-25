@@ -21,12 +21,16 @@ Lua `5.1`. It does not check the client version or build, because beta builds
 change several times a week. Instead it checks at login for the native
 equipment-set APIs, constants, and weapon slot identities it needs, and
 disables itself with one message if any are missing. Retail and other Classic
-clients are not supported.
+clients are not supported. WSF can load on Classic Era and Anniversary for
+testing (it falls back to their older slot lookup and Character panel frames),
+but those clients are not tested or supported yet.
 
 ## Features
 
 - Save main-hand, off-hand, and ranged configurations, including shields and held
   off-hand items. Keep intentionally empty weapon slots in the snapshot.
+- The ranged slot is part of every set: a set also equips its bow, gun, wand, or
+  thrown weapon, or a paladin's libram, a druid's idol, or a shaman's totem.
 - Ignore native non-weapon equipment slots rather than manage complete outfits.
 - Use the **Save** and **Equip** icon buttons in the Character equipment panel.
   They sit beneath the left and right slot columns, clear of the stat text that

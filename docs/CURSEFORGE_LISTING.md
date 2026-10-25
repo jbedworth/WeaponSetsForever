@@ -42,6 +42,7 @@ Sets are native WoW equipment sets: they persist per character without AddOn sto
 - `/wsf save Name` or `/wsf save "Set Name"` to save your current weapons.
 - Native `/equipset` for command and macro swaps.
 - Keeps intentionally empty weapon slots, including shields and held off-hand items.
+- The ranged slot is part of every set, so a set also equips its bow, gun, wand, or thrown weapon, or a paladin's libram, a druid's idol, or a shaman's totem.
 - `/wsf export` or `/wsf export Name` prints a saved set and the item IDs of your current gear, by slot, as JSON.
 - `/wsf` or `/wsf help` lists every command. `/weaponsets` works the same, in case another AddOn uses `/wsf`.
 - No SavedVariables, and it needs no other AddOn to work. CurseForge installs Dyre's Toolkit with it, so the in-game AddOn list shows WSF with the other Dyre's AddOns.

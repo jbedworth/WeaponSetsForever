@@ -4,6 +4,8 @@ local pending
 local SWAP_TIMEOUT_SECONDS = 5
 local DEFAULT_TITLE = "Weapon Sets Forever"
 local READY_MESSAGE = "  Ready. Use the Save and Equip icons in the Character panel, or /wsf save Name."
+local SETS_REPORTED_UNAVAILABLE = "The game reports equipment sets as unavailable; WSF will try anyway."
+    .. " Each save and equip says if it worked."
 local SWAP_FAILED_MESSAGE = "The weapon swap did not complete. Some items may have changed. Check your weapons, item locks, and free bag space."
 WSF.available = false
 
@@ -84,9 +86,10 @@ end
 -- not guard any swap or save path.
 function WSF.ReportSwapDebugStatus()
     WSF.Report(string.format(
-        "debug_swap status enabled=%s available=%s events=%d lastResult=%s lastSet=%s pending=%s",
+        "debug_swap status enabled=%s available=%s events=%d lastResult=%s lastSet=%s pending=%s canUse=%s",
         tostring(swapDebug), tostring(WSF.available), swapEvents.count,
-        tostring(swapEvents.result), tostring(swapEvents.setID), tostring(pending ~= nil)))
+        tostring(swapEvents.result), tostring(swapEvents.setID), tostring(pending ~= nil),
+        tostring(WSF.equipmentSetsReported)))
     if not WSF.available then
         return
     end
@@ -269,6 +272,9 @@ events:SetScript("OnEvent", function(self, event, result, setID)
         end
         WSF.available = available
         ReportLoaded(available)
+        if available and WSF.equipmentSetsReported == false then
+            WSF.Report(SETS_REPORTED_UNAVAILABLE)
+        end
         ReportSlashConflicts()
         if not available then
             WSF.Report(message)

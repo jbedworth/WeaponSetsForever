@@ -280,6 +280,14 @@ Source alone cannot answer these; they belong to in-client testing:
 5. `UseEquipmentSet` return/event timing, failure, partial completion,
    hardware-event restrictions, and combat restrictions.
 6. Native ammo behavior, and Unicode name handling in the native manager.
+7. Classic Era (1.15.9.70003) and Anniversary (2.5.6.70006): their source
+   (Gethe/wow-ui-source branches `classic_era`, `classic_anniversary`) has
+   every `C_EquipmentSet` function WSF needs, its events and constants, and
+   `/equipset`, but no `C_PaperDollInfo.GetInventorySlotInfo` (only the
+   global), no `PaperDollFrame.ItemsFrame` (only the global
+   `PaperDollItemsFrame`), no `CharacterFrame.LeftPaneHost`, and no native
+   Equipment Manager window. Whether `CanUseEquipmentSets()` is true there
+   is not known from source.
 
 ## Automated tests
 
@@ -356,6 +364,14 @@ Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
       shows under Bags & Inventory and works the same.
 - [ ] Verify core runs on the current beta build and rejects missing APIs,
       constants, or slot identities before unsafe operations.
+- [ ] Classic Era and Anniversary (not supported; fallback check only, with
+      "Load out of date AddOns"): login shows the banner and the Ready line,
+      no capability message. The Save and Equip icons sit under the wrist and
+      second trinket slots without covering the weapon or ammo slots, and the
+      panels open above the weapon row. Save, equip, and `/equipset` work.
+      If the login shows "The game reports equipment sets as unavailable",
+      `/wsf debug_swap status` shows `canUse=false`; save and equip must
+      still work or report their own failure.
 - [ ] Login and `/reload` with the Character panel closed and open. Confirm
       initial availability does not depend on core/UI login-handler order.
 - [ ] Test unavailable capability. Buttons must disable without event errors.

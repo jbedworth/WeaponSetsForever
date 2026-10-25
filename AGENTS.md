@@ -106,7 +106,18 @@ outfit management, frameworks, or speculative features without agreement.
 - Do not gate the runtime on client version, build, or Interface: the author
   dropped that check because Forever beta builds ship several times a week.
   Gate only on required APIs/constants and verified slot identities: main 16,
-  off 17, ranged 18.
+  off 17, ranged 18. Slot identities come from
+  `C_PaperDollInfo.GetInventorySlotInfo`, else the global
+  `GetInventorySlotInfo` (Classic Era and Anniversary have only the global;
+  `WSF.GetSlotInfoFunction`). The UI uses `PaperDollFrame.ItemsFrame` and
+  `CharacterFrame.LeftPaneHost` when present, else the global
+  `PaperDollItemsFrame` for both, with panels 132 pixels above its bottom
+  (the Vanilla/TBC weapon row tops out at 127). These fallbacks let WSF load
+  there for testing; they are not a claim of Classic support.
+  `C_EquipmentSet.CanUseEquipmentSets()` is a note, not a gate
+  (author-approved, 1.2.0): when it is false and every required API exists,
+  WSF starts with one login note and `debug_swap status` shows `canUse=false`
+  (WeaponRack saves and equips sets on Era without asking it).
   Require all three slots. Do not drop hidden empty ranged based on
   IsRangedSlotShown or IsInventorySlotEnabled. Native result tables omit
   ignored locations. Treat an omitted weapon location as empty only with an

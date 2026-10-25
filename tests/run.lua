@@ -499,7 +499,7 @@ test("login says nothing about /wsk or other commands", function()
 end)
 test("clash report also runs when WSF is unavailable", function()
     local state = fixture(false)
-    state.capable = false
+    state.env.C_EquipmentSet = false
     state.env.SlashCmdList.OTHERADDON = function() end
     state.env.SLASH_OTHERADDON1 = "/wsf"
     state.emit("PLAYER_LOGIN")
@@ -544,9 +544,12 @@ for _, name in ipairs(requiredAPIs) do
 end
 local invalidCapabilities = {
     {"native table", function(s) s.env.C_EquipmentSet = false end},
-    {"character support", function(s) s.capable = false end},
-    {"paper doll table", function(s) s.env.C_PaperDollInfo = false end},
-    {"slot API", function(s) s.env.C_PaperDollInfo.GetInventorySlotInfo = nil end},
+    {"paper doll table without the global slot API", function(s) s.env.C_PaperDollInfo = false end},
+    {"both slot APIs", function(s) s.env.C_PaperDollInfo.GetInventorySlotInfo = nil end},
+    {"global slot API that is not a function", function(s)
+        s.env.C_PaperDollInfo = false
+        s.env.GetInventorySlotInfo = "MainHandSlot"
+    end},
     {"inventory ID", function(s) s.env.GetInventoryItemID = false end},
     {"inventory texture", function(s) s.env.GetInventoryItemTexture = false end},
     {"inventory locks", function(s) s.env.IsInventoryItemLocked = false end},
@@ -565,6 +568,38 @@ for _, case in ipairs(invalidCapabilities) do
         capabilityFailure(state)
     end)
 end
+-- Classic Era and Anniversary have only the global GetInventorySlotInfo,
+-- which also returns the texture and a relic flag after the slot ID.
+local function classicSlots(state)
+    state.env.C_PaperDollInfo = nil
+    state.env.GetInventorySlotInfo = function(name)
+        local id = state.slots[name]
+        if id == nil then error("Invalid inventory slot: " .. tostring(name)) end
+        return id, "Interface\Paperdoll\UI-PaperDoll-Slot-" .. name, false
+    end
+end
+test("capability uses the global slot API when C_PaperDollInfo lacks it", function()
+    local state = fixture(false)
+    classicSlots(state)
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, true)
+    state.takeBanner(true)
+    equal(#state.messages, 0)
+    equal(state.wsf.Save("Classic"), true)
+end)
+test("capability prefers C_PaperDollInfo over the global slot API", function()
+    local state = fixture(false)
+    state.env.GetInventorySlotInfo = function() error("global slot API must not be called") end
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, true)
+end)
+test("capability rejects a wrong slot identity from the global slot API", function()
+    local state = fixture(false)
+    classicSlots(state)
+    state.slots.RangedSlot = 19
+    capabilityFailure(state)
+    contains(state.messages[1], "RangedSlot")
+end)
 for _, name in ipairs({"MainHandSlot", "SecondaryHandSlot", "RangedSlot"}) do
     local slotName = name
     test("capability rejects unsupported " .. slotName, function()
@@ -591,11 +626,61 @@ test("login banner shows TOC title, version, and author, then a ready hint", fun
 end)
 test("login banner precedes the unavailable reason", function()
     local state = fixture(false)
-    state.capable = false
+    state.env.C_EquipmentSet = false
     state.emit("PLAYER_LOGIN")
     equal(#state.messages, 2)
     equal(state.messages[1], state.banner)
-    contains(state.messages[2], "unavailable for this character")
+    contains(state.messages[2], "unavailable on this client")
+end)
+-- Classic Era: every API is present, but CanUseEquipmentSets can be false
+-- while sets still work (WeaponRack never asks). WSF runs with one note.
+local SETS_NOTE = "WSF: The game reports equipment sets as unavailable; WSF will try anyway."
+    .. " Each save and equip says if it worked."
+test("CanUseEquipmentSets false: WSF starts with one note", function()
+    local state = fixture(false)
+    state.capable = false
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, true)
+    state.takeBanner(true)
+    same(state.messages, {SETS_NOTE})
+    state.emit("PLAYER_LOGIN")
+    equal(#state.messages, 1, "note printed once")
+end)
+test("CanUseEquipmentSets false: save and equip still run and report", function()
+    local state = fixture(false)
+    state.capable = false
+    state.emit("PLAYER_LOGIN")
+    state.takeBanner(true)
+    state.messages = {}
+    equal(state.wsf.Save("Classic"), true)
+    assertSnapshot(state, 100)
+    equal(state.wsf.Equip(100), true)
+end)
+test("CanUseEquipmentSets false on a Classic-shaped client still starts", function()
+    local state = fixture(false)
+    state.capable = false
+    state.env.C_PaperDollInfo = nil
+    state.env.GetInventorySlotInfo = function(name) return state.slots[name], "texture", false end
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, true)
+    state.takeBanner(true)
+    same(state.messages, {SETS_NOTE})
+end)
+test("CanUseEquipmentSets true: no note (Forever unchanged)", function()
+    local state = fixture(false)
+    state.emit("PLAYER_LOGIN")
+    state.takeBanner(true)
+    same(state.messages, {})
+    equal(state.wsf.equipmentSetsReported, true)
+end)
+test("debug_swap status shows canUse=false", function()
+    local state = fixture(false)
+    state.capable = false
+    state.emit("PLAYER_LOGIN")
+    state.takeBanner(true)
+    state.messages = {}
+    state.wsf.HandleCommand("debug_swap status")
+    contains(state.messages[1], "canUse=false")
 end)
 test("login banner falls back without the metadata API or fields", function()
     local state = fixture(false)
@@ -1352,14 +1437,24 @@ local function uiFixture(options)
         return frame
     end
     env.CharacterFrame = widget("Frame")
-    env.CharacterFrame.LeftPaneHost = widget("Frame", nil, env.CharacterFrame)
     local manager = env.PaperDollFrame.EquipmentManagerPane
     env.PaperDollFrame = widget("Frame", nil, env.CharacterFrame)
-    env.PaperDollFrame.EquipmentManagerPane = manager
-    env.PaperDollFrame.ItemsFrame = widget("Frame", nil, env.PaperDollFrame)
+    local items
+    if options.classic then
+        -- Classic Era and Anniversary: a global items frame, no LeftPaneHost,
+        -- and no native Equipment Manager pane.
+        items = widget("Frame", nil, env.PaperDollFrame)
+        if not options.noItemsFrame then env.PaperDollItemsFrame = items end
+    else
+        env.CharacterFrame.LeftPaneHost = widget("Frame", nil, env.CharacterFrame)
+        env.PaperDollFrame.EquipmentManagerPane = manager
+        items = widget("Frame", nil, env.PaperDollFrame)
+        env.PaperDollFrame.ItemsFrame = items
+    end
+    state.itemsFrame = items
     if not options.missingSlots then
-        env.CharacterWristSlot = widget("ItemButton", nil, env.PaperDollFrame.ItemsFrame)
-        env.CharacterTrinket1Slot = widget("ItemButton", nil, env.PaperDollFrame.ItemsFrame)
+        env.CharacterWristSlot = widget("ItemButton", nil, items)
+        env.CharacterTrinket1Slot = widget("ItemButton", nil, items)
     end
     env.GameTooltip = widget("Tooltip")
     env.GameTooltip:Hide()
@@ -1392,7 +1487,7 @@ local function uiFixture(options)
     state.emit("PLAYER_LOGIN")
     state.advance(0)
     state.takeBanner(state.wsf.available)
-    if options.missingSlots then return state end
+    if options.missingSlots or options.noItemsFrame then return state end
     state.saveDialog = env.WeaponSetsForeverSaveDialog
     state.equipDialog = env.WeaponSetsForeverEquipDialog
     equal(type(state.saveDialog), "table", "named save dialog")
@@ -1738,6 +1833,26 @@ test("equip row checks availability before core call", function()
     noMutation(state, function() state.fire(state.button(state.equipDialog, "Weapons"), "OnClick") end)
     onlyFailure(state, "unavailable")
 end)
+test("Classic Character panel: icons on PaperDollItemsFrame, panels above its weapon row", function()
+    local state = uiFixture({classic = true})
+    local items = state.env.PaperDollItemsFrame
+    equal(state.controls.parent, items)
+    same(state.controls.allPoints, {items})
+    same(state.saveButton.points, {{"TOPLEFT", state.env.CharacterWristSlot, "BOTTOMLEFT", 0, -6}})
+    same(state.equipButton.points, {{"TOPRIGHT", state.env.CharacterTrinket1Slot, "BOTTOMRIGHT", 0, -6}})
+    for _, dialog in ipairs({state.saveDialog, state.equipDialog}) do
+        same(dialog.points[1], {"BOTTOM", items, "BOTTOM", 0, 132})
+    end
+    state.fire(state.saveButton, "OnClick")
+    equal(state.saveDialog:IsShown(), true, "save opens with no Equipment Manager pane")
+end)
+test("no items frame at all makes no controls and no error", function()
+    local state = uiFixture({classic = true, noItemsFrame = true})
+    equal(state.env.WeaponSetsForeverSaveDialog, nil)
+    equal(state.env.WeaponSetsForeverEquipDialog, nil)
+    equal(#state.messages, 0)
+end)
+
 test("custom dialogs capture headings, native rectangle colors, and button placement", function()
     local state = uiFixture()
     local items = state.env.PaperDollFrame.ItemsFrame
@@ -2329,9 +2444,9 @@ test("swap debug status counts client swap events even while off", function()
         state.wsf.HandleCommand("DEBUG_SWAP STATUS")
     end)
     same(state.messages, {
-        "WSF: debug_swap status enabled=false available=true events=0 lastResult=nil lastSet=nil pending=false",
+        "WSF: debug_swap status enabled=false available=true events=0 lastResult=nil lastSet=nil pending=false canUse=true",
         "WSF: debug_swap test set=nil name=nil isEquipped=nil 16=1016 17=1017 18=nil",
-        "WSF: debug_swap status enabled=false available=true events=2 lastResult=false lastSet=7 pending=false",
+        "WSF: debug_swap status enabled=false available=true events=2 lastResult=false lastSet=7 pending=false canUse=true",
         "WSF: debug_swap test " .. SWAP_STATE:format("false", 1016, 1017),
     })
 end)
@@ -2350,7 +2465,7 @@ test("swap debug status works while unavailable without reading APIs", function(
     state.env.C_EquipmentSet = nil
     state.wsf.HandleCommand("debug_swap status")
     same(state.messages, {
-        "WSF: debug_swap status enabled=false available=false events=0 lastResult=nil lastSet=nil pending=false",
+        "WSF: debug_swap status enabled=false available=false events=0 lastResult=nil lastSet=nil pending=false canUse=nil",
     })
 end)
 

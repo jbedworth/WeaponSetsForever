@@ -8,6 +8,9 @@ local BUTTON_HEIGHT = 28
 local GAP = 6
 -- Panels open above the weapon row, between the side slot columns.
 local PANEL_BOTTOM_OFFSET = 124
+-- Classic Era and Anniversary have no LeftPaneHost; their weapon row tops
+-- out 127 pixels above PaperDollItemsFrame's bottom (PaperDollFrame.xml).
+local CLASSIC_PANEL_BOTTOM_OFFSET = 132
 local ICON_BUTTON_SIZE = 28
 -- The Save icon is built from the logo by scripts/build_icon.py; the client
 -- resolves the .tga extension. Equip uses a built-in client icon.
@@ -25,6 +28,8 @@ local COMBAT_MESSAGE = "Weapon sets cannot be saved in combat. Wait until combat
 local UNAVAILABLE_MESSAGE = "Weapon sets are unavailable on this client."
 
 local controls
+local itemsFrame
+local panelAnchor, panelOffset
 local selection
 local saveDialog
 local rows = {}
@@ -133,7 +138,7 @@ end
 local function CreatePanel(name, width, height)
     local panel = CreateFrame("Frame", name, controls)
     panel:SetSize(width, height)
-    panel:SetPoint("BOTTOM", CharacterFrame.LeftPaneHost, "BOTTOM", 0, PANEL_BOTTOM_OFFSET)
+    panel:SetPoint("BOTTOM", panelAnchor, "BOTTOM", 0, panelOffset)
     panel:SetFrameStrata("DIALOG")
     panel:EnableMouse(true)
     panel:Hide()
@@ -342,17 +347,36 @@ local function UpdateAvailability()
     end
 end
 
+-- Forever's Character panel has PaperDollFrame.ItemsFrame and
+-- CharacterFrame.LeftPaneHost; Classic Era and Anniversary have the global
+-- PaperDollItemsFrame and no LeftPaneHost.
+local function FindPanelFrames()
+    if not PaperDollFrame or not CharacterFrame then
+        return nil
+    end
+    local items = PaperDollFrame.ItemsFrame or PaperDollItemsFrame
+    if not items then
+        return nil
+    end
+    if CharacterFrame.LeftPaneHost then
+        return items, CharacterFrame.LeftPaneHost, PANEL_BOTTOM_OFFSET
+    end
+    return items, items, CLASSIC_PANEL_BOTTOM_OFFSET
+end
+
 local function Initialize()
-    if controls or not loggedIn or not PaperDollFrame or not CharacterFrame
-        or not CharacterFrame.LeftPaneHost or not PaperDollFrame.ItemsFrame
-        or not CharacterWristSlot or not CharacterTrinket1Slot
+    if controls or not loggedIn or not CharacterWristSlot or not CharacterTrinket1Slot
         or InCombatLockdown() then
+        return
+    end
+    itemsFrame, panelAnchor, panelOffset = FindPanelFrames()
+    if not itemsFrame then
         return
     end
 
     -- A mouse-transparent container lets parent hiding close every WSF control.
-    controls = CreateFrame("Frame", nil, PaperDollFrame.ItemsFrame)
-    controls:SetAllPoints(PaperDollFrame.ItemsFrame)
+    controls = CreateFrame("Frame", nil, itemsFrame)
+    controls:SetAllPoints(itemsFrame)
     -- Wrist and Trinket1 are the last slots in the left and right columns.
     controls.save = CreateIconButton(SAVE_ICON, CharacterWristSlot, "LEFT")
     controls.equip = CreateIconButton(EQUIP_ICON, CharacterTrinket1Slot, "RIGHT")

@@ -1,8 +1,8 @@
-## Interface: 16001
+## Interface: 16001, 11509
 ## Title: Weapon Sets Forever
 ## Notes: Save native weapon-only equipment sets for WOW Forever
 ## Author: Dyre
-## Version: 1.1.0
+## Version: 1.2.0
 ## IconTexture: Interface\Icons\INV_Sword_04
 ## Category: Bags & Inventory
 ## Group: DyresToolkit
