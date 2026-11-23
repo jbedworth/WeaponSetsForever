@@ -50,6 +50,9 @@ those change.
   It then prints one banner (`Title Version by Author`, read through
   `C_AddOns.GetAddOnMetadata`, with a fixed title fallback), followed by a
   ready hint or the unavailable reason. Metadata never gates operations.
+  When Dyre's Toolkit's `ShowWelcome()` returns false, the banner and ready
+  hint are skipped; the unavailable reason, the equipment-set note, and a
+  slash clash still print.
   Missing capabilities disable operations and produce one login report.
   A missing `C_Timer.After` also disables core operations.
 - `/wsf debug_swap` (session-only, off by default) prints swap state at the
@@ -365,7 +368,8 @@ Enable `/chatlog` to copy the output from `Logs/WoWChatLog.txt`.
 - [ ] Verify core runs on the current beta build and rejects missing APIs,
       constants, or slot identities before unsafe operations.
 - [ ] Classic Era and Anniversary (not supported; fallback check only, with
-      "Load out of date AddOns"): login shows the banner and the Ready line,
+      "Load out of date AddOns"): login shows the banner and the Ready line
+      (with "Welcome messages at login" on in Dyre's Toolkit),
       no capability message. The Save and Equip icons sit under the wrist and
       second trinket slots without covering the weapon or ammo slots, and the
       panels open above the weapon row. Save, equip, and `/equipset` work.

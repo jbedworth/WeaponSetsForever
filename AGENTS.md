@@ -78,9 +78,16 @@ outfit management, frameworks, or speculative features without agreement.
   mode, minimap menu, and settings home. WSF has no movable frame, settings
   page, or saved variables, so it joins only the AddOn list:
   `## Group: DyresToolkit` nests it under the toolkit there. `## Category`
-  then matters only when the toolkit is missing. WSF code does not use the
-  toolkit: no `## OptionalDeps` (add it only when the code joins the
-  toolkit; author has not decided) and no login line about it. CurseForge
+  then matters only when the toolkit is missing. WSF code reads only one
+  toolkit function: at `PLAYER_LOGIN`, `DyresToolkit.ShowWelcome()` (Toolkit
+  2.14.0, "Welcome messages at login", account-wide; John, 2026-11-23) hides
+  the banner and Ready line when it returns false. It is a feature test, so
+  an older toolkit or none prints as before; problems (the unavailable
+  reason, the equipment-set note, a slash clash) always print. No own switch
+  and no minimum toolkit. `PLAYER_LOGIN` comes after every AddOn and saved
+  variable loads, so no `## OptionalDeps` is needed (add it only when the
+  code joins the toolkit; author has not decided), and no login line about
+  a missing toolkit. CurseForge
   relations (author-set, 2026-10-20): Dyre's Toolkit required, Weapon Skills
   Forever optional; `RELATIONS` in scripts/publish_curseforge.py sends them,
   never as an empty list (CurseForge answers HTTP 400).

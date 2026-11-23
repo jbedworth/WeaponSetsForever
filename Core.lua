@@ -24,7 +24,19 @@ local function Metadata(field)
     end
 end
 
+-- Dyre's Toolkit 2.14.0's "Welcome messages at login" switch (account-wide).
+-- Without the function (no toolkit, or an older one), the banner prints as before.
+-- Only the banner and ready lines follow it; problems always print.
+local function ShowWelcome()
+    local toolkit = _G.DyresToolkit
+    return not (type(toolkit) == "table" and type(toolkit.ShowWelcome) == "function"
+        and toolkit.ShowWelcome() == false)
+end
+
 local function ReportLoaded(available)
+    if not ShowWelcome() then
+        return
+    end
     local banner = Metadata("Title") or DEFAULT_TITLE
     local version, author = Metadata("Version"), Metadata("Author")
     if version then

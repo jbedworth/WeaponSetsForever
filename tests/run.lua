@@ -632,6 +632,52 @@ test("login banner precedes the unavailable reason", function()
     equal(state.messages[1], state.banner)
     contains(state.messages[2], "unavailable on this client")
 end)
+-- Dyre's Toolkit 2.14.0's "Welcome messages at login" switch hides only the
+-- banner and ready lines; problems always print.
+local function welcomeState(showWelcome)
+    local state = fixture(false)
+    if showWelcome ~= nil then
+        state.env.DyresToolkit = {}
+        if showWelcome ~= "missing" then
+            state.env.DyresToolkit.ShowWelcome = function() return showWelcome end
+        end
+    end
+    return state
+end
+for _, case in ipairs({{"no toolkit", nil}, {"a toolkit without ShowWelcome", "missing"},
+    {"ShowWelcome true", true}}) do
+    local name, value = case[1], case[2]
+    test("login banner shows with " .. name, function()
+        local state = welcomeState(value)
+        state.emit("PLAYER_LOGIN")
+        state.takeBanner(true)
+        same(state.messages, {})
+    end)
+end
+test("login banner and ready line are hidden with ShowWelcome false", function()
+    local state = welcomeState(false)
+    state.emit("PLAYER_LOGIN")
+    equal(state.wsf.available, true)
+    same(state.messages, {})
+end)
+test("ShowWelcome false still shows the unavailable reason", function()
+    local state = welcomeState(false)
+    state.env.C_EquipmentSet = false
+    state.emit("PLAYER_LOGIN")
+    equal(#state.messages, 1)
+    contains(state.messages[1], "unavailable on this client")
+end)
+test("ShowWelcome false still shows the equipment-set note and a slash clash", function()
+    local state = welcomeState(false)
+    state.capable = false
+    state.env.SlashCmdList.OTHERADDON = function() end
+    state.env.SLASH_OTHERADDON1 = "/wsf"
+    state.emit("PLAYER_LOGIN")
+    equal(#state.messages, 2)
+    contains(state.messages[1], "reports equipment sets as unavailable")
+    equal(state.messages[2], "WSF: Another AddOn (OTHERADDON) also uses /wsf. Use /weaponsets instead.")
+end)
+
 -- Classic Era: every API is present, but CanUseEquipmentSets can be false
 -- while sets still work (WeaponRack never asks). WSF runs with one note.
 local SETS_NOTE = "WSF: The game reports equipment sets as unavailable; WSF will try anyway."
